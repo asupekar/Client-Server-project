@@ -1,0 +1,339 @@
+#include <cstdio>
+
+// Server side C/C++ program to demonstrate Socket programming
+#include <unistd.h>
+#include <stdio.h>
+#include <sys/socket.h>
+#include <stdlib.h>
+#include <netinet/in.h>
+#include <string.h>
+#include <iostream>
+#include <unordered_map>
+#include <fstream>
+using namespace std;
+
+//typedef unordered_map<string, string> ul_map;
+//ul_map readUsers();
+//char *connectRPC(string string1, string string2, user data);
+//void extractCredentials(string buffer, string &username, string &password);
+
+#define PORT 12150
+
+class parseAndStoreInput {
+private:
+    char * passedIn[4]{};
+    unordered_map<string, string> parameters;
+    string rpc;
+public:
+    explicit parseAndStoreInput(char * rpcCall) {
+        initialInputParse(rpcCall);
+        deepParse();
+    };
+    void initialInputParse(char * rpcCall) {
+        cout << "The passed in RPC call is: " << rpcCall << endl;
+        int i = 0;
+        char *pch = strtok(rpcCall, ";");
+        while (pch != nullptr) {
+            passedIn[i++] = pch;
+            pch = strtok(nullptr, ";");
+        }
+    };
+    void deepParse() {
+        string delimiter = "=";
+        for(int j = 0; j < 3; ++j) {
+            if(passedIn[j] != NULL) {
+                cout << j << passedIn[j] << endl;
+            } else {
+                break;
+            }
+        }
+        for(int j = 0; j < 3; ++j) {
+            if(passedIn[j] != NULL) {
+                string currCall(passedIn[j]);
+                string key = currCall.substr(0, currCall.find(delimiter));
+                string val = currCall.substr(currCall.find(delimiter) + 1, currCall.length());
+                parameters.insert({key,val});
+            } else {
+                break;
+            }
+        }
+        unordered_map<string,string>::const_iterator got = parameters.find("rpc");
+        rpc = got->second;
+        parameters.erase("rpc");
+    }
+
+    string whichRPC() {
+        return rpc;
+    }
+
+    unordered_map<string, string> restOfParameters() {
+        return parameters;
+    }
+
+    void clear() {
+        rpc = "";
+        parameters.clear();
+    }
+};
+
+// User class to store user information
+class user {
+private:
+    // state?
+    bool changed;
+    string preferredUsername;
+    string password;
+    string userStatus;
+    string userMessage;
+public:
+    user() {
+        changed = false;
+    }
+    void initializeFields(string field, string val) {
+        if(field == "password")
+            password = val;
+        else if(field == "userMessage")
+            userMessage = val;
+        else if(field == "preferredUserName")
+            preferredUsername = val;
+    }
+    string getField(string field) {
+        if(field == "password")
+            return password;
+        else if(field == "userMessage")
+            return userMessage;
+        else if(field == "preferredUserName")
+            return preferredUsername;
+        else if(field == userStatus)
+            return userStatus;
+        else
+            return "Not valid field";
+    }
+    void changeField(string field, string val) {
+        initializeFields(field, val);
+        changed = true;
+    }
+};
+
+// Read and store data into user object and then into map
+class readAndStoreUserData {
+private:
+    unordered_map<string, user> userDict;
+public:
+    readAndStoreUserData() {
+        readFile();
+    };
+    void readFile() {
+        ifstream data("userInfo.csv");
+        if (!data.is_open())
+        {
+            exit(EXIT_FAILURE);
+        }
+        string headerRef;
+        getline(data,headerRef);
+
+        string str;
+        string header;
+
+        while(getline(data, str)) {
+            header = headerRef;
+            unordered_map<string, string> userDetails;
+            user currUser = user();
+
+            string delimiter = ",";
+            size_t pos = 0;
+            size_t headerPos = 0;
+
+            string token;
+            string username;
+            string currColumn;
+
+            while ((pos = str.find(delimiter)) != string::npos) {
+                headerPos = header.find(delimiter);
+                token = str.substr(0, pos);
+                currColumn = header.substr(0, headerPos);
+                if (currColumn == "username") {
+                    username = token;
+                } else {
+                    currUser.initializeFields(currColumn, token);
+                }
+
+                str.erase(0, pos + delimiter.length());
+                header.erase(0, headerPos + delimiter.length());
+            }
+            if((header.at(header.length() - 1) = '\r')) {
+                header.erase(header.length() - 1);
+            }
+            if(str.length() > 0 && (str.at(str.length() - 1) = '\r')) {
+                str.erase(str.length() - 1);
+            }
+//            cout << "added a user" << endl;
+            currUser.initializeFields(header, str);
+//            cout << "added back to main map" << endl;
+            userDict.insert({username,currUser});
+        }
+        data.close();
+//        cout << "all data processed" << endl;
+    };
+
+    string getUserDetail(string un, string detail) {
+//        cout << "start of method" << endl;
+        string retrievedValue;
+        user foundUser = findUser(un);
+        retrievedValue = foundUser.getField(detail);
+//        cout << "hello" << endl;
+        return retrievedValue;
+    };
+
+    void changeUserValue(string un, string detail, string value) {
+        user foundUser = findUser(un);
+        foundUser.changeField(detail, value);
+        userDict.erase(un);
+        userDict.insert({un,foundUser});
+    };
+
+    user findUser(string un) {
+        unordered_map<string,user>::const_iterator outerMapIt = userDict.find(un);
+        user foundUser = outerMapIt->second;
+        return foundUser;
+    };
+
+};
+
+//void extractCredentials(string buffer, string &username, string &password) {
+//    string delimiter = ";";
+//    size_t pos = 0;
+//    string *tokens = new string[3];
+//    int i = 0;
+//    while ((pos = buffer.find(delimiter)) != std::string::npos && i < 3) {
+//        tokens[i] = buffer.substr(i, pos);
+//        cout<<"tokens = "<<i<< " "<<tokens[i]<<endl;
+//        buffer.erase(2, pos + delimiter.length());
+//        i++;
+//    }
+//    username = tokens[1].substr(tokens[1].find("=")+1,tokens[1].find(";")-tokens[1].find("=")-1);
+//    cout<<"Username = "<<username<<endl;
+//    password = tokens[2].substr(tokens[2].find("=")+1,tokens[2].find(";")-tokens[2].find("=")-1);
+//    cout<<"Password = "<<password<<endl;
+//}
+
+char* connectRPC(string username, string password, readAndStoreUserData data) {
+    // prepare return
+    char* output = new char[30];
+//    string lookupUn = username;
+    strcpy(output, "status=1;error=Success;");
+    try {
+//        data.getUserDetail(username, "password");
+        // validate passwords
+//        cout<<"";
+        string pwd = data.getUserDetail(username, "password");
+        cout << pwd << endl;
+        if (pwd.compare(password) == 0) {
+            //success
+            strcpy(output, "status=1;error=Success;");
+        } else {
+            //error
+            strcpy(output, "status=-1;error=BadPassword;");
+        }
+    } catch (...) {
+        //error
+        strcpy(output, "status=-1;error=BadUsername;");
+    }
+    return output;
+};
+
+void disconnectRPC() {
+
+}
+
+int main(int argc, char const *argv[]) {
+    int server_fd, new_socket, valread;
+    struct sockaddr_in address;
+    int opt = 1;
+    int addrlen = sizeof(address);
+    char buffer[1024] = { 0 };
+
+    cout << "Server startup" << endl;
+
+    readAndStoreUserData data = readAndStoreUserData();
+
+    cout << "All data read in" << endl;
+//    cout << data.getUserDetail("Ruifeng", "password") << endl;
+//    ul_map userList = readUsers();
+
+    // Creating socket file descriptor
+    if ((server_fd = socket(AF_INET, SOCK_STREAM, 0)) == 0)
+    {
+        perror("socket failed");
+        exit(EXIT_FAILURE);
+    }
+    printf("Got Socket\n");
+    // Forcefully attaching socket to the port
+    if (setsockopt(server_fd, SOL_SOCKET, SO_REUSEADDR,
+                   &opt, sizeof(opt)))
+    {
+        perror("setsockopt");
+        exit(EXIT_FAILURE);
+    }
+    address.sin_family = AF_INET;
+    address.sin_addr.s_addr = INADDR_ANY;
+    address.sin_port = htons(PORT);
+
+    // Forcefully attaching socket to the port
+    printf("About to bind\n");
+    if (::bind(server_fd, (struct sockaddr *)&address,
+               sizeof(address)) < 0)
+    {
+        perror("bind failed");
+        exit(EXIT_FAILURE);
+    }
+
+    while(true) {
+        if (listen(server_fd, 3) < 0) {
+            perror("listen");
+            exit(EXIT_FAILURE);
+        }
+        printf("Waiting\n");
+        if ((new_socket = accept(server_fd, (struct sockaddr *) &address,
+                                 (socklen_t *) &addrlen)) < 0) {
+            perror("accept");
+            exit(EXIT_FAILURE);
+        }
+        printf("Accepted Connected\n");
+
+        // We will read the very simple HELLO message and return a Hello message back
+
+        while ((valread = read(new_socket, buffer, 1024)) != 0) {
+            cout << "Waiting for new RPC" << endl;
+            printf("%s\n", buffer);
+
+            string username, password;
+//            extractCredentials((string)buffer, username, password);
+
+            parseAndStoreInput input = parseAndStoreInput(buffer);
+            cout << "The RPC is: " << input.whichRPC() << endl;
+            if(input.whichRPC() == "connect") {
+                cout << "entered connect correctly" << endl;
+                unordered_map<string, string> maps = input.restOfParameters();
+                unordered_map<string,string>::const_iterator s = maps.find("username");
+                username = s->second;
+                unordered_map<string,string>::const_iterator p = maps.find("password");
+                password = p->second;
+                cout << "username: " << username << " and password: " << password << endl;
+
+                char *output = connectRPC(username, password, data);
+                send(new_socket, output, strlen(output), 0);
+                input.clear();
+                cout << "The rpc is now: " << input.whichRPC() << endl;
+            } else if(input.whichRPC() == "disconnect") {
+                char const *disconnect = "Disconnect RPC processed";
+                send(new_socket, disconnect, strlen(disconnect), 0);
+                input.clear();
+                cout << "Disconnect called" << endl;
+            } else {
+                char const *unknownRPC = "Unrecognized RPC detected";
+                send(new_socket, unknownRPC, strlen(unknownRPC), 0);
+            }
+        }
+    }
+};
