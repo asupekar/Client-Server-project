@@ -26,11 +26,12 @@ private:
     string rpc;
 public:
     explicit parseAndStoreInput(char * rpcCall) {
+//        cout << "The RPC call in the constructor is " << rpcCall << endl;
         initialInputParse(rpcCall);
         deepParse();
     };
     void initialInputParse(char * rpcCall) {
-        cout << "The passed in RPC call is: " << rpcCall << endl;
+//        cout << "The passed in RPC call is: " << rpcCall << endl;
         int i = 0;
         char *pch = strtok(rpcCall, ";");
         while (pch != nullptr) {
@@ -42,7 +43,8 @@ public:
         string delimiter = "=";
         for(int j = 0; j < 3; ++j) {
             if(passedIn[j] != NULL) {
-                cout << j << passedIn[j] << endl;
+                continue;
+//                cout << passedIn[j] << endl;
             } else {
                 break;
             }
@@ -198,6 +200,15 @@ public:
         return foundUser;
     };
 
+    string checkValidUsername(string un) {
+        auto s = userDict.find(un);
+        if(s == userDict.end()) {
+            return "";
+        } else {
+            return un;
+        }
+    }
+
 };
 
 //void extractCredentials(string buffer, string &username, string &password) {
@@ -217,33 +228,38 @@ public:
 //    cout<<"Password = "<<password<<endl;
 //}
 
-char* connectRPC(string username, string password, readAndStoreUserData data) {
+void connectRPC(readAndStoreUserData data, unordered_map<string, string> params, int &new_socket) {
     // prepare return
-    char* output = new char[30];
-//    string lookupUn = username;
-    strcpy(output, "status=1;error=Success;");
-    try {
-//        data.getUserDetail(username, "password");
-        // validate passwords
-//        cout<<"";
-        string pwd = data.getUserDetail(username, "password");
-        cout << pwd << endl;
-        if (pwd.compare(password) == 0) {
+    char output[30];
+
+    string storedUsername, storedPassword;
+    string passedInUsername, passedInPassword;
+
+    auto s = params.find("username");
+    passedInUsername = s->second;
+    storedUsername = data.checkValidUsername(passedInUsername);
+    if (storedUsername != passedInUsername) {
+        strcpy(output, strcpy(output, "status=-1;error=BadUsername;"));
+    } else {
+        auto p = params.find("password");
+        passedInPassword = p->second;
+        storedPassword = data.getUserDetail(storedUsername, "password");
+//        cout << storedPassword << endl;
+        if (storedPassword == passedInPassword) {
             //success
+            cout << passedInUsername << " has connected to the server!" << endl;
             strcpy(output, "status=1;error=Success;");
         } else {
             //error
             strcpy(output, "status=-1;error=BadPassword;");
         }
-    } catch (...) {
-        //error
-        strcpy(output, "status=-1;error=BadUsername;");
     }
-    return output;
+    send(new_socket, output, strlen(output), 0);
 };
 
-void disconnectRPC() {
-
+void disconnectRPC(int &new_socket) {
+    char const *disconnect = "Disconnect RPC processed";
+    send(new_socket, disconnect, strlen(disconnect), 0);
 }
 
 int main(int argc, char const *argv[]) {
@@ -301,38 +317,27 @@ int main(int argc, char const *argv[]) {
         }
         printf("Accepted Connected\n");
 
-        // We will read the very simple HELLO message and return a Hello message back
-
         while ((valread = read(new_socket, buffer, 1024)) != 0) {
             cout << "Waiting for new RPC" << endl;
-            printf("%s\n", buffer);
-
-            string username, password;
-//            extractCredentials((string)buffer, username, password);
+//            cout << "The buffer is " << buffer << endl;
+//            cout << "The buffer size is " << strlen(buffer) << endl;
 
             parseAndStoreInput input = parseAndStoreInput(buffer);
-            cout << "The RPC is: " << input.whichRPC() << endl;
+//            cout << "The RPC is: " << input.whichRPC() << endl;
             if(input.whichRPC() == "connect") {
-                cout << "entered connect correctly" << endl;
+//                cout << "entered connect correctly" << endl;
                 unordered_map<string, string> maps = input.restOfParameters();
-                unordered_map<string,string>::const_iterator s = maps.find("username");
-                username = s->second;
-                unordered_map<string,string>::const_iterator p = maps.find("password");
-                password = p->second;
-                cout << "username: " << username << " and password: " << password << endl;
-
-                char *output = connectRPC(username, password, data);
-                send(new_socket, output, strlen(output), 0);
+                connectRPC(data, maps, new_socket);
                 input.clear();
-                cout << "The rpc is now: " << input.whichRPC() << endl;
+//                cout << "The rpc is now: " << input.whichRPC() << endl;
             } else if(input.whichRPC() == "disconnect") {
-                char const *disconnect = "Disconnect RPC processed";
-                send(new_socket, disconnect, strlen(disconnect), 0);
+                disconnectRPC(new_socket);
                 input.clear();
                 cout << "Disconnect called" << endl;
             } else {
                 char const *unknownRPC = "Unrecognized RPC detected";
                 send(new_socket, unknownRPC, strlen(unknownRPC), 0);
+                input.clear();
             }
         }
     }

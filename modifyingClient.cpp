@@ -48,10 +48,9 @@ int connectToServer(char *szHostName, char *szPort, int & sock)
 
 // rpc=disconnect;
 void disconnectRPC(int & sock) {
-    char const *disconnect = "rpc=disconnect;";
-    cout << "Passing in: " << disconnect << endl;
-    send(sock, disconnect, strlen(disconnect), 0);
-//    int result = close(sock);
+    char const * disconnectCall = "rpc=disconnect;";
+    cout << "Passing in: " << disconnectCall << endl;
+    send(sock, disconnectCall, strlen(disconnectCall), 0);
 
     size_t valRead=0;
     char buffer[1024] = { 0 };
@@ -74,22 +73,22 @@ int connectRPC(int & sock)
     // Input Arguments are:
     // username
     // password
-    char *username = new char[20];
-    char *password = new char[20];
+    char username[50];
+    char password[50];
     cout << "Enter your username: ";
     cin >> username;
     cout << "Enter your password: ";
     cin >> password;
 
     // input format="rpc=connect;username=<Your user>;password=<Your password>;"
-    int authStrLen = 32 + strlen(username) + strlen(password);
-    char *authStr = new char[authStrLen];
+//    int authStrLen = 32 + strlen(username) + strlen(password);
+    char authStr[100];
     strcpy(authStr,"rpc=connect;username=");
     strcat(authStr, username);
     strcat(authStr, ";password=");
     strcat(authStr, password);
     strcat(authStr, ";");
-    send(sock, authStr, authStrLen, 0);
+    send(sock, authStr, strlen(authStr), 0);
     printf("Sent login details, waiting for server response...");
     cout << endl;
 
@@ -108,10 +107,14 @@ int connectRPC(int & sock)
 int main(int argc, char const *argv[])
 {
     int sock = 0;
+    if(argc < 2) {
+        printf("This needs 2 arguments Host name (127.0.0.1) and port #");
+        return 1;
+    }
     connectToServer((char *) argv[1], (char *) argv[2], sock);
     connectRPC(sock);
-//    cout<<"Waiting for 10 seconds....."<<endl;
-//    usleep(10000000);
+    cout<<"Waiting for 10 seconds....."<<endl;
+    usleep(10000000);
     disconnectRPC(sock);
     return 0;
 
