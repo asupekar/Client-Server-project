@@ -125,7 +125,7 @@ int main(int argc, char const *argv[])
             connected = true;
         } else {
             cout << parsedResponse[3] << endl;
-            cout << "Fail" << endl;
+//            cout << "Fail" << endl;
         }
     } while(!connected);
     cout<<"Waiting for 10 seconds....."<<endl;
