@@ -6,21 +6,17 @@
 #include <unistd.h>
 #include <cstring>
 #include <iostream>
-#define PORT 12150
+#include <vector>
+
+#define PORT 12126
 
 using namespace std;
 
-//int helloRPC(int & sock){
-//    size_t valRead=0;
-//    char hello[24];
-//    strcpy(hello,"Hello from client");
-//    char buffer[1024] = { 0 };
-//    send(sock, hello, strlen(hello), 0);
-//    printf("Hello message sent\n");
-//    valRead = read(sock, buffer, 1024);
-//    printf("ValRead=%d buffer=%s\n", valRead, buffer);
-//    return 0;
-//}
+// If user does not pass in information, still allow log in (FOR NOW CAN BE REMOVED LATER)
+char const * host = "127.0.0.1";
+char const * port = "12126";
+
+// Making the initial connection to the server
 int connectToServer(char *szHostName, char *szPort, int & sock)
 {
     struct sockaddr_in serv_addr;
@@ -46,7 +42,9 @@ int connectToServer(char *szHostName, char *szPort, int & sock)
     return 0;
 }
 
-// rpc=disconnect;
+// Client side disconnect RPC
+// Sends "rpc=disconnect;" to the server for processing and receives a buffer back with "Disconnected"
+// Then processes the disconnect
 void disconnectRPC(int & sock) {
     char const * disconnectCall = "rpc=disconnect;";
     cout << "Passing in: " << disconnectCall << endl;
@@ -57,40 +55,44 @@ void disconnectRPC(int & sock) {
     valRead = read(sock, buffer, 1024);
     printf("ValRead=%d buffer=%s\n", valRead, buffer);
     close(sock);
-
-//    int result = close(sock);
-//    cout << "Status = "<< result<<"; ";
-//    if (result < 0) {
-//        cout<<"Error = Closing failed!"<<endl;
-//    } else {
-//        cout<<"Error = Closing successful"<<endl;
-//    }
-//    return result;
 }
 
-int connectRPC(int & sock)
+// Parses buffer and returns the status or error message as a string
+vector<string> getStatusorError(string buffer) {
+    cout << "Buffer being passed in is " << buffer << endl;
+    vector<string> vec;
+    string::size_type pos = string::npos;
+    while((pos = buffer.find_first_of("=;")) != string::npos){
+        string str = buffer.substr(0, pos);
+        vec.push_back(str);
+        buffer.erase(0, pos+1);
+    }
+    return vec;
+}
+
+// Client side connect RPC
+// Asks user for username and password and sends connect request to server
+// Prints out server's response
+string connectRPC(int & sock)
 {
-    // Input Arguments are:
-    // username
-    // password
-    char username[50];
-    char password[50];
+    // Input Arguments are: username, password
+    char username[256];
+    char password[256];
     cout << "Enter your username: ";
     cin >> username;
     cout << "Enter your password: ";
     cin >> password;
 
+    // Formulates input to send to server
     // input format="rpc=connect;username=<Your user>;password=<Your password>;"
-//    int authStrLen = 32 + strlen(username) + strlen(password);
-    char authStr[100];
+    char authStr[256];
     strcpy(authStr,"rpc=connect;username=");
     strcat(authStr, username);
     strcat(authStr, ";password=");
     strcat(authStr, password);
     strcat(authStr, ";");
     send(sock, authStr, strlen(authStr), 0);
-    printf("Sent login details, waiting for server response...");
-    cout << endl;
+    cout << "Sent login details, waiting for server response..." << endl;
 
     // Output arguments are:
     // status     (This will be set to 1 if success and -1 if error)
@@ -100,19 +102,32 @@ int connectRPC(int & sock)
     char buffer[1024] = { 0 };
     valRead = read(sock, buffer, 1024);
     printf("ValRead=%d buffer=%s\n", valRead, buffer);
-    // parse here the response
-    return 0;
+
+    //TODO: Change to parse the buffer and return the correct status
+    return buffer;
 }
 
 int main(int argc, char const *argv[])
 {
     int sock = 0;
     if(argc < 2) {
-        printf("This needs 2 arguments Host name (127.0.0.1) and port #");
-        return 1;
+        cout << "This needs 2 arguments Host name (127.0.0.1) and port #" << endl;
+        connectToServer((char *)host, (char *) port, sock);
+    } else {
+        connectToServer((char *) argv[1], (char *) argv[2], sock);
     }
-    connectToServer((char *) argv[1], (char *) argv[2], sock);
-    connectRPC(sock);
+    bool connected = false;
+    do {
+        string response = connectRPC(sock);
+        vector<string> parsedResponse = getStatusorError(response);
+        if (parsedResponse[1] == "1") {
+            cout << "Successfully connected!" << endl;
+            connected = true;
+        } else {
+            cout << parsedResponse[3] << endl;
+//            cout << "Fail" << endl;
+        }
+    } while(!connected);
     cout<<"Waiting for 10 seconds....."<<endl;
     usleep(10000000);
     disconnectRPC(sock);

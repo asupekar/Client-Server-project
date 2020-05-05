@@ -10,6 +10,8 @@
 #include <iostream>
 #include <unordered_map>
 #include <fstream>
+#include <vector>
+
 using namespace std;
 
 //typedef unordered_map<string, string> ul_map;
@@ -17,7 +19,7 @@ using namespace std;
 //char *connectRPC(string string1, string string2, user data);
 //void extractCredentials(string buffer, string &username, string &password);
 
-#define PORT 12150
+#define PORT 12126
 
 class parseAndStoreInput {
 private:
@@ -25,44 +27,71 @@ private:
     unordered_map<string, string> parameters;
     string rpc;
 public:
-    explicit parseAndStoreInput(char * rpcCall) {
-//        cout << "The RPC call in the constructor is " << rpcCall << endl;
-        initialInputParse(rpcCall);
-        deepParse();
+    explicit parseAndStoreInput(string rpcCall) {
+        cout << "The RPC call in the constructor is " << rpcCall << endl;
+        vector<string> vectorInput = initialInputParse(rpcCall);
+        deepParse(vectorInput);
     };
-    void initialInputParse(char * rpcCall) {
-//        cout << "The passed in RPC call is: " << rpcCall << endl;
-        int i = 0;
-        char *pch = strtok(rpcCall, ";");
-        while (pch != nullptr) {
-            passedIn[i++] = pch;
-            pch = strtok(nullptr, ";");
+    static vector<string> initialInputParse(string rpcCall) {
+        vector<string> vec;
+        string::size_type pos = string::npos;
+        while((pos = rpcCall.find_first_of(";")) != string::npos){
+            string str = rpcCall.substr(0, pos);
+            vec.push_back(str);
+            rpcCall.erase(0, pos+1);
         }
-    };
-    void deepParse() {
-        string delimiter = "=";
-        for(int j = 0; j < 3; ++j) {
-            if(passedIn[j] != NULL) {
-                continue;
-//                cout << passedIn[j] << endl;
-            } else {
-                break;
-            }
-        }
-        for(int j = 0; j < 3; ++j) {
-            if(passedIn[j] != NULL) {
-                string currCall(passedIn[j]);
-                string key = currCall.substr(0, currCall.find(delimiter));
-                string val = currCall.substr(currCall.find(delimiter) + 1, currCall.length());
+        return vec;
+    }
+    void deepParse(vector<string> vectorInput) {
+        vector<string> vec;
+        string::size_type pos = string::npos;
+        for(string s : vectorInput) {
+            while((pos = s.find_first_of("=")) != string::npos){
+                string key = s.substr(0, pos);
+                cout << key << endl;
+                s.erase(0, pos+1);
+                string val = s.substr(0, s.length());
+                cout << val << endl;
                 parameters.insert({key,val});
-            } else {
-                break;
             }
         }
         unordered_map<string,string>::const_iterator got = parameters.find("rpc");
         rpc = got->second;
         parameters.erase("rpc");
     }
+//    void initialInputParse(string rpcCall) {
+////        cout << "The passed in RPC call is: " << rpcCall << endl;
+//        int i = 0;
+//        char *pch = strtok(rpcCall, ";");
+//        while (pch != nullptr) {
+//            passedIn[i++] = pch;
+//            pch = strtok(nullptr, ";");
+//        }
+//    };
+//    void deepParse(vector<string> vectorInput) {
+//        string delimiter = "=";
+//        for(int j = 0; j < 3; ++j) {
+//            if(passedIn[j] != NULL) {
+//                continue;
+////                cout << passedIn[j] << endl;
+//            } else {
+//                break;
+//            }
+//        }
+//        for(int j = 0; j < 3; ++j) {
+//            if(passedIn[j] != NULL) {
+//                string currCall(passedIn[j]);
+//                string key = currCall.substr(0, currCall.find(delimiter));
+//                string val = currCall.substr(currCall.find(delimiter) + 1, currCall.length());
+//                parameters.insert({key,val});
+//            } else {
+//                break;
+//            }
+//        }
+//        unordered_map<string,string>::const_iterator got = parameters.find("rpc");
+//        rpc = got->second;
+//        parameters.erase("rpc");
+//    }
 
     string whichRPC() {
         return rpc;
@@ -111,10 +140,10 @@ public:
         else
             return "Not valid field";
     }
-    void changeField(string field, string val) {
-        initializeFields(field, val);
-        changed = true;
-    }
+//    void changeField(string field, string val) {
+//        initializeFields(field, val);
+//        changed = true;
+//    }
 };
 
 // Read and store data into user object and then into map
@@ -187,12 +216,12 @@ public:
         return retrievedValue;
     };
 
-    void changeUserValue(string un, string detail, string value) {
-        user foundUser = findUser(un);
-        foundUser.changeField(detail, value);
-        userDict.erase(un);
-        userDict.insert({un,foundUser});
-    };
+//    void changeUserValue(string un, string detail, string value) {
+//        user foundUser = findUser(un);
+//        foundUser.changeField(detail, value);
+//        userDict.erase(un);
+//        userDict.insert({un,foundUser});
+//    };
 
     user findUser(string un) {
         unordered_map<string,user>::const_iterator outerMapIt = userDict.find(un);
@@ -211,23 +240,6 @@ public:
 
 };
 
-//void extractCredentials(string buffer, string &username, string &password) {
-//    string delimiter = ";";
-//    size_t pos = 0;
-//    string *tokens = new string[3];
-//    int i = 0;
-//    while ((pos = buffer.find(delimiter)) != std::string::npos && i < 3) {
-//        tokens[i] = buffer.substr(i, pos);
-//        cout<<"tokens = "<<i<< " "<<tokens[i]<<endl;
-//        buffer.erase(2, pos + delimiter.length());
-//        i++;
-//    }
-//    username = tokens[1].substr(tokens[1].find("=")+1,tokens[1].find(";")-tokens[1].find("=")-1);
-//    cout<<"Username = "<<username<<endl;
-//    password = tokens[2].substr(tokens[2].find("=")+1,tokens[2].find(";")-tokens[2].find("=")-1);
-//    cout<<"Password = "<<password<<endl;
-//}
-
 void connectRPC(readAndStoreUserData data, unordered_map<string, string> params, int &new_socket) {
     // prepare return
     char output[30];
@@ -239,6 +251,7 @@ void connectRPC(readAndStoreUserData data, unordered_map<string, string> params,
     passedInUsername = s->second;
     storedUsername = data.checkValidUsername(passedInUsername);
     if (storedUsername != passedInUsername) {
+        cout << "Bad Username passed in" << endl;
         strcpy(output, strcpy(output, "status=-1;error=BadUsername;"));
     } else {
         auto p = params.find("password");
@@ -251,6 +264,7 @@ void connectRPC(readAndStoreUserData data, unordered_map<string, string> params,
             strcpy(output, "status=1;error=Success;");
         } else {
             //error
+            cout << "User found, but password was incorrect" << endl;
             strcpy(output, "status=-1;error=BadPassword;");
         }
     }
@@ -258,7 +272,7 @@ void connectRPC(readAndStoreUserData data, unordered_map<string, string> params,
 };
 
 void disconnectRPC(int &new_socket) {
-    char const *disconnect = "Disconnect RPC processed";
+    char const *disconnect = "Disconnected";
     send(new_socket, disconnect, strlen(disconnect), 0);
 }
 
@@ -315,7 +329,6 @@ int main(int argc, char const *argv[]) {
             perror("accept");
             exit(EXIT_FAILURE);
         }
-        printf("Accepted Connected\n");
 
         while ((valread = read(new_socket, buffer, 1024)) != 0) {
             cout << "Waiting for new RPC" << endl;
