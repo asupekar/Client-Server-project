@@ -12,14 +12,91 @@
 #include <fstream>
 #include <vector>
 
+
 using namespace std;
 
 //typedef unordered_map<string, string> ul_map;
 //ul_map readUsers();
 //char *connectRPC(string string1, string string2, user data);
 //void extractCredentials(string buffer, string &username, string &password);
+typedef std::string bytearray;
 
 #define PORT 12126
+
+class Encryption {
+
+    private:
+    const static int shift = 4;
+    const static int OFFSET_MIN = 32;
+    const static int OFFSET_MAX = 126;
+     
+public:
+ static string encrypt(string plainText) {
+    for(char const &c: plainText){
+        int index = (int)c;
+        if (!isPositionInRange(index)) {
+            throw invalid_argument("String to be encrypted has unrecognized character ");
+        }
+    }
+    string result = encryptDecrypt(plainText, true);
+    return result;
+}
+
+static string decrypt(string cipherText) {
+    string result = encryptDecrypt(cipherText, false);
+    return result;
+}
+
+static bool isPositionInRange(int index) {
+    if(index < OFFSET_MIN || index > OFFSET_MAX){
+        return false;
+    }
+    return true;
+}
+
+static string encryptDecrypt(string word, bool flag) {
+    string result;
+    int deShift = 0;
+    for(long unsigned int i =0; i < word.length();i++) {
+        if (isupper(word[i])) {
+            if(flag == true) {
+                result = result + char(int(word[i] + shift - 65) % 26 + 65);
+            }
+            else{
+                deShift = 26 - shift;
+                result = result + char(int(word[i] + deShift - 65) % 26 + 65);
+            }
+        } else if (islower(word[i])){
+            if(flag == true) {
+                result = result + char(int(word[i] + shift - 97) % 26 + 97);
+            }
+            else {
+                deShift = 26 - shift;
+                result = result + char(int(word[i] + deShift - 97) % 26 + 97);
+            }
+        } else if(isdigit(word[i])){
+            if(flag == true) {
+                result = result + char(int(word[i] + shift - 48) % 10 + 48);
+            }
+            else {
+                deShift = 10 - shift;
+                result = result + char(int(word[i] + deShift - 48) % 10 + 48);
+            }
+        }
+        else {
+            if(flag == true) {
+                result = result + char(int(word[i] + shift - 32) % 15 + 32);
+            }
+            else {
+                deShift = 15 - shift;
+                result = result + char(int(word[i] + deShift - 32) % 15 + 32);
+            }
+        }
+    }
+    return result;
+}
+};
+
 
 class parseAndStoreInput {
 private:
@@ -243,10 +320,9 @@ public:
 void connectRPC(readAndStoreUserData data, unordered_map<string, string> params, int &new_socket) {
     // prepare return
     char output[30];
-
+    Encryption enc;
     string storedUsername, storedPassword;
     string passedInUsername, passedInPassword;
-
     auto s = params.find("username");
     passedInUsername = s->second;
     storedUsername = data.checkValidUsername(passedInUsername);
@@ -256,7 +332,7 @@ void connectRPC(readAndStoreUserData data, unordered_map<string, string> params,
     } else {
         auto p = params.find("password");
         passedInPassword = p->second;
-        storedPassword = data.getUserDetail(storedUsername, "password");
+        storedPassword = enc.decrypt(data.getUserDetail(storedUsername, "password"));
 //        cout << storedPassword << endl;
         if (storedPassword == passedInPassword) {
             //success
@@ -276,7 +352,9 @@ void disconnectRPC(int &new_socket) {
     send(new_socket, disconnect, strlen(disconnect), 0);
 }
 
+
 int main(int argc, char const *argv[]) {
+
     int server_fd, new_socket, valread;
     struct sockaddr_in address;
     int opt = 1;
@@ -354,4 +432,5 @@ int main(int argc, char const *argv[]) {
             }
         }
     }
+
 };
