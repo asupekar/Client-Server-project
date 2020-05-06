@@ -1,6 +1,6 @@
 // Client side C/C++ program to demonstrate Socket programming
-#include <stdio.h>
-#include <stdlib.h>
+#include <cstdio>
+#include <cstdlib>
 #include <sys/socket.h>
 #include <arpa/inet.h>
 #include <unistd.h>
@@ -8,60 +8,67 @@
 #include <iostream>
 #include <vector>
 
-#define PORT 12126
+// This port and host will automatically be passed in if client is called without arguments
+#define PORT "12126"
+#define HOST "127.0.0.1"
 
 using namespace std;
-
-// If user does not pass in information, still allow log in (FOR NOW CAN BE REMOVED LATER)
-char const * host = "127.0.0.1";
-char const * port = "12126";
 
 // Making the initial connection to the server
 int connectToServer(char *szHostName, char *szPort, int & sock)
 {
-    struct sockaddr_in serv_addr;
+    struct sockaddr_in serv_addr{};
     serv_addr.sin_family = AF_INET;
-    uint16_t port = (uint16_t) atoi(szPort);
+    auto port = (uint16_t) atoi(szPort);
     serv_addr.sin_port = htons(port);
     if ((sock = socket(AF_INET, SOCK_STREAM, 0)) < 0)
     {
-        printf("\n Socket creation error \n");
+        cout << "Socket creation error" << endl;
         return -1;
     }
     serv_addr.sin_family = AF_INET;
-    serv_addr.sin_port = htons(PORT);
+    serv_addr.sin_port = htons(port);
     if (inet_pton(AF_INET, szHostName, &serv_addr.sin_addr) <= 0)
     {
-        printf("\nInvalid address/ Address not supported \n");
+        cout << "Invalid address/ Address not supported" << endl;
         return -1;
     }
     if (connect(sock, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0)
     {
-        printf("\nConnection Failed \n");return -1;
+        cout << "Connection Failed" << endl;
+        return -1;
     }
     return 0;
 }
 
 // Client side disconnect RPC
-// Sends "rpc=disconnect;" to the server for processing and receives a buffer back with "Disconnected"
-// Then processes the disconnect
+// Sends "rpc=disconnect;" to the server for processing and receives a buffer back
+// Disconnect is then processed
 void disconnectRPC(int & sock) {
-    char const * disconnectCall = "rpc=disconnect;";
-    cout << "Passing in: " << disconnectCall << endl;
-    send(sock, disconnectCall, strlen(disconnectCall), 0);
+    char disconnectCall[256];
+    strcpy(disconnectCall,"rpc=disconnect;");
+//    cout << "Passing in: " << disconnectCall << endl;
+//    cout << "String length being passed in: " << strlen(disconnectCall) << endl;
+    send(sock, disconnectCall, strlen(disconnectCall)+1, 0);
 
-    size_t valRead=0;
+    // Output arguments are:
+    // status     (This will be set to 1 if success and -1 if error)
+    // error      (This will be some sort of message (error or success))
+    // output format="status=<errorStatus>;error=<errorMessage>
+    size_t valRead;
     char buffer[1024] = { 0 };
     valRead = read(sock, buffer, 1024);
-    printf("ValRead=%d buffer=%s\n", valRead, buffer);
+    // Printing out the valRead and the buffer for validation purposes
+    printf("ValRead=%zu buffer=%s\n", valRead, buffer);
     close(sock);
 }
 
-// Parses buffer and returns the status or error message as a string
+// Parses buffer into a vector
+// Parsed buffer vector will store in format [status, errorStatus, error, errorMessage]
 vector<string> getStatusorError(string buffer) {
-    cout << "Buffer being passed in is " << buffer << endl;
+//    cout << "Buffer being passed in is " << buffer << endl;
     vector<string> vec;
-    string::size_type pos = string::npos;
+    string::size_type pos;
     while((pos = buffer.find_first_of("=;")) != string::npos){
         string str = buffer.substr(0, pos);
         vec.push_back(str);
@@ -91,32 +98,35 @@ string connectRPC(int & sock)
     strcat(authStr, ";password=");
     strcat(authStr, password);
     strcat(authStr, ";");
-    send(sock, authStr, strlen(authStr), 0);
+    send(sock, authStr, strlen(authStr)+1, 0);
     cout << "Sent login details, waiting for server response..." << endl;
 
     // Output arguments are:
     // status     (This will be set to 1 if success and -1 if error)
-    // error      ( This will be to blank or an error message)
-    // output format="status=<error status>;error=<error or blank>
-    size_t valRead=0;
+    // error      (This will be some sort of message (error or success))
+    // output format="status=<errorStatus>;error=<errorMessage>
+    size_t valRead;
     char buffer[1024] = { 0 };
     valRead = read(sock, buffer, 1024);
-    printf("ValRead=%d buffer=%s\n", valRead, buffer);
-
-    //TODO: Change to parse the buffer and return the correct status
+    // Printing out the valRead and the buffer for validation purposes
+    printf("ValRead=%zu buffer=%s\n", valRead, buffer);
+    // returns entire buffer, to be parsed later
     return buffer;
 }
 
 int main(int argc, char const *argv[])
 {
     int sock = 0;
+    // Client can input host name and port # as arguments when running the program
+    // If the client does not provide these, the global HOST and PORT are used to connect
     if(argc < 2) {
-        cout << "This needs 2 arguments Host name (127.0.0.1) and port #" << endl;
-        connectToServer((char *)host, (char *) port, sock);
+//        cout << "This needs 2 arguments Host name (127.0.0.1) and port #" << endl;
+        connectToServer((char *) HOST, (char *) PORT, sock);
     } else {
         connectToServer((char *) argv[1], (char *) argv[2], sock);
     }
     bool connected = false;
+    // Continue to ask for user credentials until they are correct
     do {
         string response = connectRPC(sock);
         vector<string> parsedResponse = getStatusorError(response);
@@ -125,10 +135,10 @@ int main(int argc, char const *argv[])
             connected = true;
         } else {
             cout << parsedResponse[3] << endl;
-//            cout << "Fail" << endl;
         }
     } while(!connected);
     cout<<"Waiting for 10 seconds....."<<endl;
+    // Wait 10 seconds and then disconnect
     usleep(10000000);
     disconnectRPC(sock);
     return 0;

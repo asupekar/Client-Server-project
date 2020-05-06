@@ -100,7 +100,6 @@ static string encryptDecrypt(string word, bool flag) {
 
 class parseAndStoreInput {
 private:
-    char * passedIn[4]{};
     unordered_map<string, string> parameters;
     string rpc;
 public:
@@ -344,12 +343,12 @@ void connectRPC(readAndStoreUserData data, unordered_map<string, string> params,
             strcpy(output, "status=-1;error=BadPassword;");
         }
     }
-    send(new_socket, output, strlen(output), 0);
+    send(new_socket, output, strlen(output)+1, 0);
 };
 
 void disconnectRPC(int &new_socket) {
-    char const *disconnect = "Disconnected";
-    send(new_socket, disconnect, strlen(disconnect), 0);
+    char const *disconnect = "status=0;error=disconnected";
+    send(new_socket, disconnect, strlen(disconnect)+1, 0);
 }
 
 
@@ -410,8 +409,8 @@ int main(int argc, char const *argv[]) {
 
         while ((valread = read(new_socket, buffer, 1024)) != 0) {
             cout << "Waiting for new RPC" << endl;
-//            cout << "The buffer is " << buffer << endl;
-//            cout << "The buffer size is " << strlen(buffer) << endl;
+            cout << "The buffer is " << buffer << endl;
+            cout << "The buffer size is " << strlen(buffer) << endl;
 
             parseAndStoreInput input = parseAndStoreInput(buffer);
 //            cout << "The RPC is: " << input.whichRPC() << endl;
@@ -426,8 +425,8 @@ int main(int argc, char const *argv[]) {
                 input.clear();
                 cout << "Disconnect called" << endl;
             } else {
-                char const *unknownRPC = "Unrecognized RPC detected";
-                send(new_socket, unknownRPC, strlen(unknownRPC), 0);
+                char const *unknownRPC = "status=-1;error=unknownRPC";
+                send(new_socket, unknownRPC, strlen(unknownRPC)+1, 0);
                 input.clear();
             }
         }
