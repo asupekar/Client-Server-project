@@ -104,7 +104,7 @@ string connectRPC(int & sock)
     // Output arguments are:
     // status     (This will be set to 1 if success and -1 if error)
     // error      (This will be some sort of message (error or success))
-    // output format="status=<errorStatus>;error=<errorMessage>
+    // output format="status=<errorStatus>;error=<errorMessage>"
     size_t valRead;
     char buffer[1024] = { 0 };
     valRead = read(sock, buffer, 1024);
@@ -134,7 +134,7 @@ int main(int argc, char const *argv[])
             cout << "Successfully connected!" << endl;
             connected = true;
         } else {
-            cout << parsedResponse[3] << endl;
+            cout << "The error was a " << parsedResponse[3] << endl;
         }
     } while(!connected);
     cout<<"Waiting for 10 seconds....."<<endl;
