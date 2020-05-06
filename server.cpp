@@ -23,6 +23,8 @@ private:
     const static int OFFSET_MAX = 126;
 
 public:
+    // Checks if all characters in the text are valid
+    // Encrypts the passed in text based on the predefined shift
     static string encrypt(string plainText) {
         for(char const &c: plainText){
             int index = (int)c;
@@ -34,11 +36,13 @@ public:
         return result;
     }
 
+    // Decrypts the passed in text
     static string decrypt(string cipherText) {
         string result = encryptDecrypt(cipherText, false);
         return result;
     }
 
+    // Checks if the position of the offset is in range
     static bool isPositionInRange(int index) {
         if(index < OFFSET_MIN || index > OFFSET_MAX){
             return false;
@@ -46,6 +50,8 @@ public:
         return true;
     }
 
+    // Encrypts and decrypts based on the flag (true for encrypt, false for decrypt)
+    // Returns the encrypted or decrypted word
     static string encryptDecrypt(string word, bool flag) {
         string result;
         int deShift = 0;
@@ -301,6 +307,7 @@ public:
 void connectRPC(readAndStoreUserData data, unordered_map<string, string> params, int &new_socket) {
     // prepare return
     char output[30];
+    // Creation of encryption object
     Encryption enc;
     string storedUsername, storedPassword;
     string passedInUsername, passedInPassword;
