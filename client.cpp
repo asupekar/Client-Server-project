@@ -46,9 +46,11 @@ int connectToServer(char *szHostName, char *szPort, int & sock)
 // Sends "rpc=disconnect;" to the server for processing and receives a buffer back with "Disconnected"
 // Then processes the disconnect
 void disconnectRPC(int & sock) {
-    char const * disconnectCall = "rpc=disconnect;";
+    char disconnectCall[256];
+    strcpy(disconnectCall,"rpc=disconnect;");
     cout << "Passing in: " << disconnectCall << endl;
-    send(sock, disconnectCall, strlen(disconnectCall), 0);
+    cout << "String length being passed in: " << strlen(disconnectCall) << endl;
+    send(sock, disconnectCall, strlen(disconnectCall)+1, 0);
 
     size_t valRead=0;
     char buffer[1024] = { 0 };
@@ -91,7 +93,7 @@ string connectRPC(int & sock)
     strcat(authStr, ";password=");
     strcat(authStr, password);
     strcat(authStr, ";");
-    send(sock, authStr, strlen(authStr), 0);
+    send(sock, authStr, strlen(authStr)+1, 0);
     cout << "Sent login details, waiting for server response..." << endl;
 
     // Output arguments are:
