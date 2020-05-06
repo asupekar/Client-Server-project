@@ -1,6 +1,5 @@
-#include <cstdio>
-
 // Server side C/C++ program to demonstrate Socket programming
+#include <cstdio>
 #include <unistd.h>
 #include <stdio.h>
 #include <sys/socket.h>
@@ -12,14 +11,7 @@
 #include <fstream>
 #include <vector>
 
-
 using namespace std;
-
-//typedef unordered_map<string, string> ul_map;
-//ul_map readUsers();
-//char *connectRPC(string string1, string string2, user data);
-//void extractCredentials(string buffer, string &username, string &password);
-typedef std::string bytearray;
 
 #define PORT 12126
 
@@ -135,6 +127,8 @@ public:
         rpc = got->second;
         parameters.erase("rpc");
     }
+
+//    TODO: Milestone2
 //    void initialInputParse(string rpcCall) {
 ////        cout << "The passed in RPC call is: " << rpcCall << endl;
 //        int i = 0;
@@ -216,6 +210,8 @@ public:
         else
             return "Not valid field";
     }
+
+//    TODO: Milestone2    
 //    void changeField(string field, string val) {
 //        initializeFields(field, val);
 //        changed = true;
@@ -292,6 +288,7 @@ public:
         return retrievedValue;
     };
 
+//    TODO: Milestone2
 //    void changeUserValue(string un, string detail, string value) {
 //        user foundUser = findUser(un);
 //        foundUser.changeField(detail, value);
