@@ -115,13 +115,25 @@ string connectRPC(int & sock)
 }
 
 // Client side send message RPC
-string sendMessage(int & sock, const char *user, const char *message) {
+string sendMessage(int & sock) {
     char authStr[1024];
+    string user;
+    string message;
+
+    cout << "Who would you like to send a message to? ";
+    cin >> user;
+    cin.sync();
+    cin.get();
+
+    cout << "What message would you like to send? ";
+    getline(cin, message);
+
     strcpy(authStr, "rpc=sendmessage;toUser=");
-    strcat(authStr, user);
+    strcat(authStr, user.c_str());
     strcat(authStr, ";message=");
-    strcat(authStr, message);
+    strcat(authStr, message.c_str());
     strcat(authStr, ";");
+
     send(sock, authStr, strlen(authStr)+1, 0);
 
     // Output arguments are:
@@ -157,8 +169,13 @@ string checkOnlineUsers(int & sock) {
 }
 
 // Client side set away message RPC
-string setAwayMessage(int & sock, const char *awayMessage) {
+string setAwayMessage(int & sock) {
     char authStr[1024];
+    char awayMessage[512];
+
+    cout << "What away message would you like to set? ";
+    cin >> awayMessage;
+
     strcpy(authStr, "rpc=setaway;awayMessage=");
     strcat(authStr, awayMessage);
     send(sock, authStr, strlen(authStr)+1, 0);
@@ -174,6 +191,13 @@ string setAwayMessage(int & sock, const char *awayMessage) {
     printf("ValRead=%zu buffer=%s\n", valRead, buffer);
     // returns entire buffer, to be parsed later
     return buffer;
+}
+
+void helpMessage() {
+    cout << "Available commands: " << endl;
+    cout << "* Send Message (Send)" << endl;
+    cout << "* Check Online Users (Check)" << endl;
+    cout << "* Set Away Message (Away)" << endl;
 }
 
 int main(int argc, char const *argv[])
@@ -199,10 +223,10 @@ int main(int argc, char const *argv[])
             cout << "The error was a " << parsedResponse[3] << endl;
         }
     } while(!connected);
-    cout << "Waiting for 10 seconds....." << endl;
+//    cout << "Waiting for 10 seconds....." << endl;
     // Wait 10 seconds and then disconnect
-    usleep(10000000);
-    sendMessage(sock, "Mike", "Hello Mike");
+//    usleep(10000000);
+    sendMessage(sock);
     disconnectRPC(sock);
     return 0;
 
