@@ -114,6 +114,68 @@ string connectRPC(int & sock)
     return buffer;
 }
 
+// Client side send message RPC
+string sendMessage(int & sock, const char *user, const char *message) {
+    char authStr[1024];
+    strcpy(authStr, "rpc=sendmessage;toUser=");
+    strcat(authStr, user);
+    strcat(authStr, ";message=");
+    strcat(authStr, message);
+    strcat(authStr, ";");
+    send(sock, authStr, strlen(authStr)+1, 0);
+
+    // Output arguments are:
+    // status     (This will be set to 1 if success and -1 if error)
+    // error      (This will be some sort of message (error or success))
+    // output format="status=<errorStatus>;error=<errorMessage>"
+    size_t valRead;
+    char buffer[1024] = { 0 };
+    valRead = read(sock, buffer, 1024);
+    // Printing out the valRead and the buffer for validation purposes
+    printf("ValRead=%zu buffer=%s\n", valRead, buffer);
+    // returns entire buffer, to be parsed later
+    return buffer;
+}
+
+// Client side check online user RPC
+string checkOnlineUsers(int & sock) {
+    char authStr[64];
+    strcpy(authStr, "rpc=checkonlineusers;");
+    send(sock, authStr, strlen(authStr)+1, 0);
+
+    // Output arguments are:
+    // status     (This will be set to 1 if success and -1 if error)
+    // error      (This will be some sort of message (error or success))
+    // output format="status=<errorStatus>;error=<errorMessage>"
+    size_t valRead;
+    char buffer[1024] = { 0 };
+    valRead = read(sock, buffer, 1024);
+    // Printing out the valRead and the buffer for validation purposes
+    printf("ValRead=%zu buffer=%s\n", valRead, buffer);
+    // returns entire buffer, to be parsed later
+    return buffer;
+}
+
+// Client side set away message RPC
+string setAwayMessage(int & sock, const char *awayMessage) {
+    char authStr[1024];
+    strcpy(authStr, "rpc=setaway;awayMessage=");
+    strcat(authStr, awayMessage);
+    send(sock, authStr, strlen(authStr)+1, 0);
+
+    // Output arguments are:
+    // status     (This will be set to 1 if success and -1 if error)
+    // error      (This will be some sort of message (error or success))
+    // output format="status=<errorStatus>;error=<errorMessage>"
+    size_t valRead;
+    char buffer[1024] = { 0 };
+    valRead = read(sock, buffer, 1024);
+    // Printing out the valRead and the buffer for validation purposes
+    printf("ValRead=%zu buffer=%s\n", valRead, buffer);
+    // returns entire buffer, to be parsed later
+    return buffer;
+}
+
 int main(int argc, char const *argv[])
 {
     int sock = 0;
@@ -137,9 +199,10 @@ int main(int argc, char const *argv[])
             cout << "The error was a " << parsedResponse[3] << endl;
         }
     } while(!connected);
-    cout<<"Waiting for 10 seconds....."<<endl;
+    cout << "Waiting for 10 seconds....." << endl;
     // Wait 10 seconds and then disconnect
     usleep(10000000);
+    sendMessage(sock, "Mike", "Hello Mike");
     disconnectRPC(sock);
     return 0;
 
