@@ -384,6 +384,165 @@ void sendMessageRPC(readAndStoreUserData data, unordered_map<string, string> par
     send(new_socket, output, strlen(output)+1, 0);
 };
 
+// ServerContextData in example
+// Information that is shared to all threads
+class SharedServerData {
+private:
+    pthread_mutex_t lock;
+    pthread_cond_t fill;
+    int socket;
+public:
+    SharedServerData() 
+    {
+        socket = 0;
+    }
+
+    // necessary socket info for threading
+    void setSocket(int s)
+	{
+		this->socket = s;
+	}
+    int getSocket()
+	{
+		return socket;
+	}
+};
+
+// Server class to store server functionality
+class Server {
+private:
+	int server_fd;
+	struct sockaddr_in address;
+	int addrlen = sizeof(address);
+	int port;
+    int maxConn;
+    readAndStoreUserData userDataStore;
+    SharedServerData *sharedData;
+
+public:
+
+    // Constructors
+	Server(int nPort)
+	{
+		port = nPort;
+        //arbitrary value for max connections
+        maxConn = 5;
+	}
+
+	~Server()
+	{
+
+	}
+
+    // Function: start server functionality
+	int startServer()
+	{
+		userDataStore = readAndStoreUserData();
+        bindSocket(port);
+        sharedData = new SharedServerData();
+		return 0;
+	}
+
+    // Function: Bind server to port and start listening
+    int bindSocket(int port) {
+        int opt = 1;
+
+		// Creating socket file descriptor 
+		if ((server_fd = socket(AF_INET, SOCK_STREAM, 0)) == 0)
+		{
+			perror("socket failed");
+			exit(EXIT_FAILURE);
+		}
+
+		// Forcefully attaching socket to the port 8080 
+		if (setsockopt(server_fd, SOL_SOCKET, SO_REUSEADDR | SO_REUSEPORT,
+			&opt, sizeof(opt)))
+		{
+			perror("setsockopt");
+			exit(EXIT_FAILURE);
+		}
+		address.sin_family = AF_INET;
+		address.sin_addr.s_addr = INADDR_ANY;
+		address.sin_port = (uint16_t) htons((uint16_t) port);
+
+		if (bind(server_fd, (struct sockaddr *)&address,
+			sizeof(address)) < 0)
+		{
+			perror("bind failed");
+			exit(EXIT_FAILURE);
+		}
+		if (listen(server_fd, maxConn) < 0)
+		{
+			perror("listen");
+			exit(EXIT_FAILURE);
+		}
+        return 0;
+    }
+
+	// Function: new client connection
+	int acceptNewConnection()
+	{
+		int new_socket;
+
+		if ((new_socket = accept(server_fd, (struct sockaddr *)&address,
+			(socklen_t*)&addrlen)) < 0)
+		{
+			perror("accept");
+			return (-1);
+		}
+		return new_socket;
+	}
+
+    // Function: copied, expecting additional functionality
+	int closeServer()
+	{
+		return 0;
+	}
+
+    // Function: listens and controls threads
+    int threadLoop() {
+        // listen for connections
+        int i = 0;
+        // create thread array
+        pthread_t threads[maxConn];
+        
+        while (true) {
+            // accept a new request
+            int newConn = acceptNewConnection();
+            sharedData->setSocket(newConn);
+            pthread_create(&threads[i], NULL, rpcThread, (void *) sharedData);
+            i = (i+1) % maxConn;
+        }
+    }
+
+    // Function to manage a thread
+   static void *rpcThread(void *arg)
+    {
+        int valread;
+        int sock;
+        char buffer[1024] = { 0 };
+
+        // read data
+        SharedServerData *pSharedData = (SharedServerData *) arg;
+        sock = pSharedData->getSocket();
+
+        // User continuously listens for new RPC requests from connected user
+        while ((valread = read(sock, buffer, 1024)) != 0) {
+
+            // The buffer is parsed and stored in an object
+            parseAndStoreInput input = parseAndStoreInput(buffer);
+
+            cout << input.whichRPC() << endl;
+            input.clear();
+            pthread_exit(NULL);
+        }
+
+        return NULL;
+    }
+
+
+};
+
 int main(int argc, char const *argv[]) {
     int server_fd, new_socket, valread;
     struct sockaddr_in address{};
@@ -475,3 +634,17 @@ int main(int argc, char const *argv[]) {
         }
     }
 }
+
+/*
+int main(int argc, char const *argv[]) {
+    // build a Server object
+    int nPort = atoi((char const  *)argv[1]);
+    Server *server = new Server(nPort);
+
+    // reads in user data
+    // start listening
+    server->startServer();
+    server->threadLoop();
+    
+}
+*/
