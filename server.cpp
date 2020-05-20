@@ -391,7 +391,11 @@ private:
     pthread_mutex_t lock;
     pthread_cond_t fill;
     int socket;
+    
 public:
+    //public for now
+    readAndStoreUserData userDataStore;
+
     SharedServerData() 
     {
         socket = 0;
@@ -532,110 +536,40 @@ public:
             // The buffer is parsed and stored in an object
             parseAndStoreInput input = parseAndStoreInput(buffer);
 
-            cout << input.whichRPC() << endl;
-            input.clear();
-            pthread_exit(NULL);
-        }
-
-        return NULL;
-    }
-
-
-};
-
-int main(int argc, char const *argv[]) {
-    int server_fd, new_socket, valread;
-    struct sockaddr_in address{};
-    int opt = 1;
-    int addrlen = sizeof(address);
-    char buffer[1024] = { 0 };
-
-    cout << "Server startup" << endl;
-    // User data is read in and stored
-    readAndStoreUserData data = readAndStoreUserData();
-    cout << "All data read in" << endl;
-
-    // Creating socket file descriptor
-    if ((server_fd = socket(AF_INET, SOCK_STREAM, 0)) == 0)
-    {
-        perror("socket failed");
-        exit(EXIT_FAILURE);
-    }
-    printf("Got Socket\n");
-    // Forcefully attaching socket to the port
-    if (setsockopt(server_fd, SOL_SOCKET, SO_REUSEADDR,
-                   &opt, sizeof(opt)))
-    {
-        perror("setsockopt");
-        exit(EXIT_FAILURE);
-    }
-    address.sin_family = AF_INET;
-    address.sin_addr.s_addr = INADDR_ANY;
-    address.sin_port = htons(PORT);
-
-    // Forcefully attaching socket to the port
-    printf("About to bind\n");
-    if (::bind(server_fd, (struct sockaddr *)&address,
-               sizeof(address)) < 0)
-    {
-        perror("bind failed");
-        exit(EXIT_FAILURE);
-    }
-
-    // Server continuously listens for new requests
-    while(true) {
-        if (listen(server_fd, 3) < 0) {
-            perror("listen");
-            exit(EXIT_FAILURE);
-        }
-        printf("Waiting\n");
-        if ((new_socket = accept(server_fd, (struct sockaddr *) &address,
-                                 (socklen_t *) &addrlen)) < 0) {
-            perror("accept");
-            exit(EXIT_FAILURE);
-        }
-
-        // User continuously listens for new RPC requests from connected user
-        while ((valread = read(new_socket, buffer, 1024)) != 0) {
-//            cout << "Waiting for new RPC" << endl;
-//            cout << "The buffer is " << buffer << endl;
-//            cout << "The buffer size is " << strlen(buffer) << endl;
-
-            // The buffer is parased and stored in an object
-            parseAndStoreInput input = parseAndStoreInput(buffer);
-//            cout << "The RPC is: " << input.whichRPC() << endl;
             // Checking on which RPC has been called
             // Connect called
             if(input.whichRPC() == "connect") {
-//                cout << "entered connect correctly" << endl;
                 unordered_map<string, string> maps = input.restOfParameters();
-                connectRPC(data, maps, new_socket);
+                connectRPC(pSharedData->userDataStore, maps, sock);
                 input.clear();
-//                cout << "The rpc is now: " << input.whichRPC() << endl;
             // Disconnect called
             } else if(input.whichRPC() == "disconnect") {
-                disconnectRPC(new_socket);
+                disconnectRPC(sock);
                 input.clear();
                 cout << "Disconnect called" << endl;
-            // Unknown RPC called
+                pthread_exit(NULL);
+            // Send message called
             }
             else if(input.whichRPC() == "sendmessage") {
                 unordered_map<string, string> maps = input.restOfParameters();
-                sendMessageRPC(data, maps, new_socket);
+                sendMessageRPC(pSharedData->userDataStore, maps, sock);
                 input.clear();
                 cout << "Disconnect called" << endl;
             // Unknown RPC called
             } 
             else {
                 char const *unknownRPC = "status=-1;error=unknownRPC";
-                send(new_socket, unknownRPC, strlen(unknownRPC)+1, 0);
+                send(sock, unknownRPC, strlen(unknownRPC)+1, 0);
                 input.clear();
             }
         }
+        pthread_exit(NULL);
+        return NULL;
     }
-}
 
-/*
+
+};
+
 int main(int argc, char const *argv[]) {
     // build a Server object
     int nPort = atoi((char const  *)argv[1]);
@@ -647,4 +581,3 @@ int main(int argc, char const *argv[]) {
     server->threadLoop();
     
 }
-*/
