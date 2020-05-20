@@ -193,7 +193,7 @@ string setAwayMessage(int & sock) {
     return buffer;
 }
 
-void helpMessage() {
+bool helpMessage() {
     cout << "Available commands: " << endl;
     cout << "* Send Message (Send)" << endl;
     cout << "* Check Online Users (Check)" << endl;
