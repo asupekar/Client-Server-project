@@ -351,6 +351,39 @@ void disconnectRPC(int &new_socket) {
     send(new_socket, disconnect, strlen(disconnect)+1, 0);
 }
 
+// Server side sendmessage RPC
+void sendMessageRPC(readAndStoreUserData data, unordered_map<string, string> params, int &new_socket) {
+    // prepare return
+    char output[30];
+    // Creation of encryption object
+    Encryption enc;
+    string storedUsername, storedPassword;
+    string passedInUsername, message;
+    // Looks in map of parameters to get the passed in username
+    auto s = params.find("toUser");
+    passedInUsername = s->second;
+    storedUsername = data.checkValidUsername(passedInUsername);
+    // Grabs the stored username. Will match if the passed in username is valid, if not will be invalid
+    // Case: Passed in username does not exist in system
+    if (storedUsername != passedInUsername) {
+        cout << "Bad Username passed in" << endl;
+        strcpy(output, strcpy(output, "status=-1;error=BadUsername;"));
+    // Case: Passed in username exists
+    } else {
+        // Checking password
+        // Looks in map of parameters to get the passed in password
+        auto p = params.find("message");
+        message = p->second;
+        cout << "Message from client: " << message << endl;
+        strcpy(output, "status=1;error=Success;");
+    }
+
+    // sendMesssageTo(passedInUsername, message, new_socket);
+
+    // Sends result back to client
+    send(new_socket, output, strlen(output)+1, 0);
+};
+
 int main(int argc, char const *argv[]) {
     int server_fd, new_socket, valread;
     struct sockaddr_in address{};
@@ -426,7 +459,15 @@ int main(int argc, char const *argv[]) {
                 input.clear();
                 cout << "Disconnect called" << endl;
             // Unknown RPC called
-            } else {
+            }
+            else if(input.whichRPC() == "sendmessage") {
+                unordered_map<string, string> maps = input.restOfParameters();
+                sendMessageRPC(data, maps, new_socket);
+                input.clear();
+                cout << "Disconnect called" << endl;
+            // Unknown RPC called
+            } 
+            else {
                 char const *unknownRPC = "status=-1;error=unknownRPC";
                 send(new_socket, unknownRPC, strlen(unknownRPC)+1, 0);
                 input.clear();
