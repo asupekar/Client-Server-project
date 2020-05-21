@@ -198,6 +198,7 @@ bool helpMessage() {
     cout << "* Send Message (Send)" << endl;
     cout << "* Check Online Users (Check)" << endl;
     cout << "* Set Away Message (Away)" << endl;
+    return true;
 }
 
 int main(int argc, char const *argv[])
@@ -226,7 +227,17 @@ int main(int argc, char const *argv[])
 //    cout << "Waiting for 10 seconds....." << endl;
     // Wait 10 seconds and then disconnect
 //    usleep(10000000);
-    sendMessage(sock);
+    
+    int x;
+    while (true) {
+        cout << "what next? 1-sendmessage, otherwise quit" << endl;
+        cin >> x;
+        if (x == 1) {
+            sendMessage(sock);
+        } else {
+            break;
+        }
+    }
     disconnectRPC(sock);
     return 0;
 

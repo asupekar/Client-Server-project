@@ -539,22 +539,23 @@ public:
             // Checking on which RPC has been called
             // Connect called
             if(input.whichRPC() == "connect") {
+                cout << "Connect called" << endl;
                 unordered_map<string, string> maps = input.restOfParameters();
                 connectRPC(pSharedData->userDataStore, maps, sock);
                 input.clear();
             // Disconnect called
             } else if(input.whichRPC() == "disconnect") {
+                cout << "Disconnect called" << endl;
                 disconnectRPC(sock);
                 input.clear();
-                cout << "Disconnect called" << endl;
                 pthread_exit(NULL);
             // Send message called
             }
             else if(input.whichRPC() == "sendmessage") {
+                cout << "Send message called" << endl;
                 unordered_map<string, string> maps = input.restOfParameters();
                 sendMessageRPC(pSharedData->userDataStore, maps, sock);
                 input.clear();
-                cout << "Disconnect called" << endl;
             // Unknown RPC called
             } 
             else {
@@ -563,7 +564,7 @@ public:
                 input.clear();
             }
         }
-        pthread_exit(NULL);
+        //pthread_exit(NULL);
         return NULL;
     }
 
