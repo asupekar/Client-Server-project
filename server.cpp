@@ -379,7 +379,10 @@ void sendMessageRPC(readAndStoreUserData data, unordered_map<string, string> par
     }
 
     // sendMesssageTo(passedInUsername, message, new_socket);
-
+    
+    //testing a wait
+    usleep(5000000);
+    
     // Sends result back to client
     send(new_socket, output, strlen(output)+1, 0);
 };
