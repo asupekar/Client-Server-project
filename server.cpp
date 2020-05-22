@@ -14,6 +14,19 @@ using namespace std;
 
 #define PORT 12126
 
+class threadData {
+private:
+    string username;
+public:
+    string getUsername() {
+        return username;
+    }
+
+    void setUsername(string un) {
+        username = un;
+    }
+};
+
 // Class to encrypt and decrypt the password
 class Encryption {
 
@@ -323,7 +336,7 @@ public:
 };
 
 // Server side connect RPC
-void connectRPC(readAndStoreUserData data, unordered_map<string, string> params, int &new_socket) {
+void connectRPC(readAndStoreUserData data, unordered_map<string, string> params, int &new_socket, threadData* thread) {
     // prepare return
     char output[30];
     // Creation of encryption object
@@ -357,6 +370,7 @@ void connectRPC(readAndStoreUserData data, unordered_map<string, string> params,
             data.setUserStatus(passedInUsername, "Online");
             string nextValue = data.getUserDetail(passedInUsername, "userStatus");
             cout << nextValue << endl;
+            thread->setUsername(passedInUsername);
             strcpy(output, "status=1;error=Success;");
         // Case: Stored password does not match the passed in password
         } else {
@@ -370,7 +384,12 @@ void connectRPC(readAndStoreUserData data, unordered_map<string, string> params,
 };
 
 // Server side disconnect RPC
-void disconnectRPC(int &new_socket) {
+void disconnectRPC(readAndStoreUserData data, threadData thread, int &new_socket) {
+    cout << "enter disconnect RPC" << endl;
+
+    data.setUserStatus(thread.getUsername(), "Offline");
+    string nextValue = data.getUserDetail(thread.getUsername(), "userStatus");
+    cout << nextValue << endl;
     char const *disconnect = "status=0;error=disconnected";
     send(new_socket, disconnect, strlen(disconnect)+1, 0);
 }
@@ -438,6 +457,7 @@ public:
 		return socket;
 	}
 };
+
 
 // Server class to store server functionality
 class Server {
@@ -556,6 +576,7 @@ public:
         // read data
         SharedServerData *pSharedData = (SharedServerData *) arg;
         sock = pSharedData->getSocket();
+        threadData thread;
 
         // User continuously listens for new RPC requests from connected user
         while ((valread = read(sock, buffer, 1024)) != 0) {
@@ -568,12 +589,13 @@ public:
             if(input.whichRPC() == "connect") {
                 cout << "Connect called" << endl;
                 unordered_map<string, string> maps = input.restOfParameters();
-                connectRPC(pSharedData->userDataStore, maps, sock);
+                connectRPC(pSharedData->userDataStore, maps, sock, &thread);
+                cout << thread.getUsername() << endl;
                 input.clear();
             // Disconnect called
             } else if(input.whichRPC() == "disconnect") {
                 cout << "Disconnect called" << endl;
-                disconnectRPC(sock);
+                disconnectRPC(pSharedData->userDataStore, thread, sock);
                 input.clear();
                 pthread_exit(NULL);
             // Send message called
