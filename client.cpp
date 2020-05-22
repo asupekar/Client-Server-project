@@ -230,6 +230,7 @@ int main(int argc, char const *argv[])
     
     int x;
     while (true) {
+        int userCommand;
         cout << "what next? 2-help " << endl;
         cin >> userCommand;
         if (userCommand == 1) {
