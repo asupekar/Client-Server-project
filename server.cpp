@@ -166,7 +166,9 @@ private:
     string userMessage;
 public:
     // Default constructor
-    user() = default;
+    user() {
+        userStatus = "offline";
+    };
     // Initializes the fields that are passed in
     void initializeFields(const string& field, const string& val) {
         if(field == "password")
@@ -184,10 +186,17 @@ public:
             return userMessage;
         else if(field == "preferredUserName")
             return preferredUsername;
-        else if(field == userStatus)
+        else if(field == "userStatus") {
+            cout << "Right field, value = " << userStatus << endl;
             return userStatus;
-        else
+        } else
             return "Not valid field";
+    }
+
+    void setStatus(string& status) {
+        cout << "setStatus method: " << status << endl;
+        userStatus.assign(status);
+        cout << "After assignment: " << userStatus << endl;
     }
 
 //    TODO: Milestone2    
@@ -273,8 +282,18 @@ public:
     string getUserDetail(const string& un, const string& detail) {
         string retrievedValue;
         user foundUser = findUser(un);
-        retrievedValue = foundUser.getField(detail);
-        return retrievedValue;
+        return foundUser.getField(detail);
+//        cout << "Retrieved value: " << retrievedValue;
+//        return retrievedValue;
+    };
+
+    void setUserStatus(const string& un, string detail) {
+        cout << "setUserStatus method: " << detail << endl;
+        user foundUser = findUser(un);
+        cout << foundUser.getField("userStatus") << endl;
+        foundUser.setStatus(detail);
+        userDict.erase(un);
+        userDict.insert({un,foundUser});
     };
 
 //    TODO: Milestone2
@@ -316,6 +335,8 @@ void connectRPC(readAndStoreUserData data, unordered_map<string, string> params,
     passedInUsername = s->second;
     // Grabs the stored username. Will match if the passed in username is valid, if not will be invalid
     storedUsername = data.checkValidUsername(passedInUsername);
+    string value = data.getUserDetail(passedInUsername, "userStatus");
+    cout << value << endl;
     // Case: Passed in username does not exist in system
     if (storedUsername != passedInUsername) {
         cout << "Bad Username passed in" << endl;
@@ -333,6 +354,9 @@ void connectRPC(readAndStoreUserData data, unordered_map<string, string> params,
         if (storedPassword == passedInPassword) {
             //success
             cout << passedInUsername << " has connected to the server!" << endl;
+            data.setUserStatus(passedInUsername, "Online");
+            string nextValue = data.getUserDetail(passedInUsername, "userStatus");
+            cout << nextValue << endl;
             strcpy(output, "status=1;error=Success;");
         // Case: Stored password does not match the passed in password
         } else {
