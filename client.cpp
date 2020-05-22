@@ -230,11 +230,13 @@ int main(int argc, char const *argv[])
     
     int x;
     while (true) {
-        cout << "what next? 1-sendmessage, otherwise quit" << endl;
-        cin >> x;
-        if (x == 1) {
+        cout << "what next? 2-help " << endl;
+        cin >> userCommand;
+        if (userCommand == 1) {
             sendMessage(sock);
-        } else {
+        } else if(userCommand == 2) {
+            helpMessage();
+        } else{
             break;
         }
     }
