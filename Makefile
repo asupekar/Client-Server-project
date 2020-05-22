@@ -1,10 +1,10 @@
 all: client server
 
 client: client.o
-	g++ -o client client.o
+	g++ -o -lpthread client client.o
 
 server: server.o
-	g++ -o server server.o -lpthread
+	g++ -o -lpthread server server.o
 
 client.o: client.cpp
 	g++ -c client.cpp
