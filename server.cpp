@@ -381,7 +381,7 @@ void connectRPC(readAndStoreUserData data, unordered_map<string, string> params,
     }
     // Sends result back to client
     send(new_socket, output, strlen(output)+1, 0);
-};
+}
 
 // Server side disconnect RPC
 void disconnectRPC(readAndStoreUserData data, threadData thread, int &new_socket) {
@@ -398,7 +398,6 @@ void sendMessageRPC(readAndStoreUserData data, unordered_map<string, string> par
     // prepare return
     char output[30];
     // Creation of encryption object
-    Encryption enc;
     string storedUsername, storedPassword;
     string passedInUsername, message;
     // Looks in map of parameters to get the passed in username
@@ -427,7 +426,7 @@ void sendMessageRPC(readAndStoreUserData data, unordered_map<string, string> par
     
     // Sends result back to client
     send(new_socket, output, strlen(output)+1, 0);
-};
+}
 
 // ServerContextData in example
 // Information that is shared to all threads
@@ -511,8 +510,8 @@ public:
 			perror("setsockopt");
 			exit(EXIT_FAILURE);
 		}
-		address.sin_family = AF_INET;
-		address.sin_addr.s_addr = INADDR_ANY;
+		address.sin_family = AF_INET;	
+   	address.sin_addr.s_addr = INADDR_ANY;
 		address.sin_port = (uint16_t) htons((uint16_t) port);
 
 		if (bind(server_fd, (struct sockaddr *)&address,

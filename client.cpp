@@ -228,7 +228,6 @@ int main(int argc, char const *argv[])
     // Wait 10 seconds and then disconnect
 //    usleep(10000000);
     
-    int x;
     while (true) {
         int userCommand;
         cout << "what next? 2-help " << endl;

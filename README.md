@@ -1,4 +1,8 @@
 # Client-Server-project
 
-g++ -std=c++11 server.cpp -o server 
-g++ -std=c++11 client.cpp -o client
+g++ -o client.o -lpthread client.cpp
+./client.o 127.0.0.1 12123
+
+g++ -o server.o -lpthread server.cpp
+./server.o 12123
+
