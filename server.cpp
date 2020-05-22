@@ -554,7 +554,7 @@ public:
         // listen for connections
         int i = 0;
         // create thread array
-        pthread_t threads[maxConn];
+        pthread_t *threads = new pthread_t[maxConn];
         
         while (true) {
             // accept a new request
@@ -563,6 +563,8 @@ public:
             pthread_create(&threads[i], NULL, rpcThread, (void *) sharedData);
             i = (i+1) % maxConn;
         }
+        
+        delete [] threads;
     }
 
     // Function to manage a thread
