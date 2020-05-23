@@ -80,11 +80,9 @@ vector<string> getStatusorError(string buffer) {
 // Client side connect RPC
 // Asks user for username and password and sends connect request to server
 // Prints out server's response
-string connectRPC(int & sock)
+string connectRPC(int & sock, string & username, string & password)
 {
     // Input Arguments are: username, password
-    char username[256];
-    char password[256];
     cout << "Enter your username: ";
     cin >> username;
     cout << "Enter your password: ";
@@ -94,9 +92,9 @@ string connectRPC(int & sock)
     // input format="rpc=connect;username=<Your user>;password=<Your password>;"
     char authStr[256];
     strcpy(authStr,"rpc=connect;username=");
-    strcat(authStr, username);
+    strcat(authStr, username.c_str());
     strcat(authStr, ";password=");
-    strcat(authStr, password);
+    strcat(authStr, password.c_str());
     strcat(authStr, ";");
     send(sock, authStr, strlen(authStr)+1, 0);
     cout << "Sent login details, waiting for server response..." << endl;
@@ -115,38 +113,40 @@ string connectRPC(int & sock)
 }
 
 // Client side send message RPC
-string sendMessage(int & sock) {
+void sendMessage(int & sock, string & fromUser, string & toUser, bool prompt) {
     char authStr[1024];
-    string user;
     string message;
 
-    cout << "Who would you like to send a message to? ";
-    cin >> user;
-    cin.sync();
-    cin.get();
+    if (prompt == true)
+    {
+        cout << "Who would you like to send a message to? ";
+        cin >> toUser;
+        cin.sync();
+        cin.get();
+    }
 
     cout << "What message would you like to send? ";
-    getline(cin, message);
+    cin >> message;
+    char buffer[1024] = { 0 };
 
     strcpy(authStr, "rpc=sendmessage;toUser=");
-    strcat(authStr, user.c_str());
+    strcat(authStr, toUser.c_str());
+    strcat(authStr, ";fromUser=");
+    strcat(authStr, fromUser.c_str());
     strcat(authStr, ";message=");
     strcat(authStr, message.c_str());
     strcat(authStr, ";");
-
     send(sock, authStr, strlen(authStr)+1, 0);
 
     // Output arguments are:
     // status     (This will be set to 1 if success and -1 if error)
     // error      (This will be some sort of message (error or success))
-    // output format="status=<errorStatus>;error=<errorMessage>"
-    size_t valRead;
-    char buffer[1024] = { 0 };
-    valRead = read(sock, buffer, 1024);
+    // output format="Message successfully sent to <username>
+    read(sock, buffer, 1024);
     // Printing out the valRead and the buffer for validation purposes
-    printf("ValRead=%zu buffer=%s\n", valRead, buffer);
+    printf("%s\n", buffer);
     // returns entire buffer, to be parsed later
-    return buffer;
+    //return buffer;
 }
 
 // Client side check online user RPC
@@ -195,15 +195,43 @@ string setAwayMessage(int & sock) {
 
 bool helpMessage() {
     cout << "Available commands: " << endl;
-    cout << "* Send Message (Send)" << endl;
-    cout << "* Check Online Users (Check)" << endl;
-    cout << "* Set Away Message (Away)" << endl;
+    cout << "1. Chat" << endl;
+    cout << "2. Check Online Users (Check)" << endl;
+    cout << "3. Set Away Message (Away)" << endl;
+    cout << "Any other number. Just to be online and be a good listener" << endl;
     return true;
 }
+
+// Initial parse of the RPC call. Parses by ; to separate out all of the arguments
+    // End result will be a vector of format: [rpc, rpcType, parameter1, parameter1value, etc...]
+    static string parse(string input) {
+        vector<string> vec;
+        string::size_type pos;
+        string val;
+        while((pos = input.find_first_of(';')) != string::npos){
+            string str = input.substr(0, pos);
+            vec.push_back(str);
+            input.erase(0, pos+1);
+        }
+
+        for(string s : vec) {
+            while((pos = s.find_first_of('=')) != string::npos){
+                string key = s.substr(0, pos);
+                // cout << "Key: " << key << endl;
+                s.erase(0, pos+1);
+                val = s.substr(0, s.length());
+                // cout << "Val: " << val << endl;
+            }
+        }
+        return val;
+    }
 
 int main(int argc, char const *argv[])
 {
     int sock = 0;
+    string username;
+    string password;
+    string toUser;
     // Client can input host name and port # as arguments when running the program
     // If the client does not provide these, the global HOST and PORT are used to connect
     if(argc < 2) {
@@ -215,7 +243,7 @@ int main(int argc, char const *argv[])
     bool connected = false;
     // Continue to ask for user credentials until they are correct
     do {
-        string response = connectRPC(sock);
+        string response = connectRPC(sock, username, password);
         vector<string> parsedResponse = getStatusorError(response);
         if (parsedResponse[1] == "1") {
             cout << "Successfully connected!" << endl;
@@ -233,14 +261,35 @@ int main(int argc, char const *argv[])
         cout << "what next? 2-help " << endl;
         cin >> userCommand;
         if (userCommand == 1) {
-            sendMessage(sock);
+            sendMessage(sock, username, toUser, true);
         } else if(userCommand == 2) {
             helpMessage();
-        } else{
-            break;
+        } else if(userCommand == 4){
+            //string message;
+            //char authStr[1024];
+            char buffer[1024] = {0};
+            while(true) {
+                while(read(sock, buffer, 1024)){
+                    printf("%s\n", buffer);
+                    string fromUser = parse(buffer);
+                    sendMessage(sock, username, fromUser, false);
+                    /**string user = buffer;
+                    while(getline(cin,message)){
+                        strcpy(authStr, "rpc=sendmessage;toUser=");
+                        strcat(authStr, user.c_str());
+                        strcat(authStr, ";message=");
+                        strcat(authStr, message.c_str());
+                        strcat(authStr, ";");
+                        send(sock, authStr, strlen(authStr)+1, 0);
+                    }*/
+                }
+
+            }
         }
     }
-    disconnectRPC(sock);
+    //disconnectRPC(sock); 
+    //sendMessage(sock);
+    
     return 0;
 
 }

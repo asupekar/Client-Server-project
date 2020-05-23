@@ -142,10 +142,10 @@ public:
         for(string s : vectorInput) {
             while((pos = s.find_first_of('=')) != string::npos){
                 string key = s.substr(0, pos);
-//                cout << key << endl;
+                cout << "Key: " << key << endl;
                 s.erase(0, pos+1);
                 string val = s.substr(0, s.length());
-//                cout << val << endl;
+                cout << "Val: " << val << endl;
                 parameters.insert({key,val});
             }
         }
@@ -393,16 +393,27 @@ void disconnectRPC(readAndStoreUserData data, threadData thread, int &new_socket
     send(new_socket, disconnect, strlen(disconnect)+1, 0);
 }
 
+void sendMesssageTo(string toUserName, string message, int &toSocket, string fromUser) {
+    char output[100];
+    strcpy(output, "FromUser=");
+    strcat(output,fromUser.c_str());
+    strcat(output,";");
+    strcat(output,message.c_str());
+    send(toSocket, output, (sizeof(output)/sizeof(output[0])) + 1, 0);
+}
+
 // Server side sendmessage RPC
-void sendMessageRPC(readAndStoreUserData data, unordered_map<string, string> params, int &new_socket) {
+void sendMessageRPC(readAndStoreUserData data, unordered_map<string, string> params, int &clientSocket, int &toSocket) {
+    cout << "Inside sendMessageRPC" << endl;
     // prepare return
-    char output[30];
+    char output[100];
     // Creation of encryption object
     string storedUsername, storedPassword;
-    string passedInUsername, message;
+    string passedInUsername, message, fromUser;
     // Looks in map of parameters to get the passed in username
     auto s = params.find("toUser");
     passedInUsername = s->second;
+    cout << "toUser is " << passedInUsername << endl;
     storedUsername = data.checkValidUsername(passedInUsername);
     // Grabs the stored username. Will match if the passed in username is valid, if not will be invalid
     // Case: Passed in username does not exist in system
@@ -413,28 +424,38 @@ void sendMessageRPC(readAndStoreUserData data, unordered_map<string, string> par
     } else {
         // Checking password
         // Looks in map of parameters to get the passed in password
+        cout << "Lets check fromUser in map" << endl;
+        auto q = params.find("fromUser");
+        fromUser = q->second;
+        cout << "fromUser is " << fromUser << endl;
         auto p = params.find("message");
         message = p->second;
-        cout << "Message from client: " << message << endl;
-        strcpy(output, "status=1;error=Success;");
+        string outputMessage = "Message successfully sent to : ";
+        cout << outputMessage << passedInUsername << endl;
+        strcpy(output, outputMessage.c_str());
+        strcat(output, passedInUsername.c_str());
     }
 
-    // sendMesssageTo(passedInUsername, message, new_socket);
+    sendMesssageTo(passedInUsername, message, toSocket, fromUser);
     
     //testing a wait
-    usleep(5000000);
+    // usleep(5000000);
     
     // Sends result back to client
-    send(new_socket, output, strlen(output)+1, 0);
+    // cout << "Sending message back to client " << clientSocket << endl;
+    send(clientSocket, output, strlen(output)+1, 0);
+    // cout << "Sending message back to client toSocket" << toSocket << endl;
+    // send(toSocket, output, strlen(output)+1, 0);
 }
 
 // ServerContextData in example
 // Information that is shared to all threads
 class SharedServerData {
 private:
-    pthread_mutex_t lock;
-    pthread_cond_t fill;
+   // pthread_mutex_t lock;
+   // pthread_cond_t fill;
     int socket;
+    unordered_map<string, int> clientSocketMapping;
     
 public:
     //public for now
@@ -454,6 +475,14 @@ public:
 	{
 		return socket;
 	}
+
+    void setClientSocketMapping(string username, int socket){
+        clientSocketMapping[username] = socket;
+    }
+
+    int getSocketMappingForClient(string username){
+        return clientSocketMapping.find(username) -> second;
+    }
 };
 
 
@@ -504,18 +533,17 @@ public:
 		}
 
 		// Forcefully attaching socket to the port 8080 
-		if (setsockopt(server_fd, SOL_SOCKET, SO_REUSEADDR | SO_REUSEPORT,
+		if (setsockopt(server_fd, SOL_SOCKET, SO_REUSEADDR,
 			&opt, sizeof(opt)))
 		{
 			perror("setsockopt");
 			exit(EXIT_FAILURE);
 		}
 		address.sin_family = AF_INET;	
-   	address.sin_addr.s_addr = INADDR_ANY;
+   	    address.sin_addr.s_addr = INADDR_ANY;
 		address.sin_port = (uint16_t) htons((uint16_t) port);
 
-		if (bind(server_fd, (struct sockaddr *)&address,
-			sizeof(address)) < 0)
+		if (::bind(server_fd, (struct sockaddr *)&address, sizeof(address)) < 0)
 		{
 			perror("bind failed");
 			exit(EXIT_FAILURE);
@@ -580,7 +608,7 @@ public:
 
         // User continuously listens for new RPC requests from connected user
         while ((valread = read(sock, buffer, 1024)) != 0) {
-
+            cout << "RPC received: " << buffer << endl;
             // The buffer is parsed and stored in an object
             parseAndStoreInput input = parseAndStoreInput(buffer);
 
@@ -591,6 +619,7 @@ public:
                 unordered_map<string, string> maps = input.restOfParameters();
                 connectRPC(pSharedData->userDataStore, maps, sock, &thread);
 //                cout << thread.getUsername() << endl;
+                pSharedData->setClientSocketMapping(thread.getUsername(), sock);
                 input.clear();
             // Disconnect called
             } else if(input.whichRPC() == "disconnect") {
@@ -603,7 +632,8 @@ public:
             else if(input.whichRPC() == "sendmessage") {
                 cout << "Send message called" << endl;
                 unordered_map<string, string> maps = input.restOfParameters();
-                sendMessageRPC(pSharedData->userDataStore, maps, sock);
+                int toSocket = pSharedData->getSocketMappingForClient(maps.find("toUser")->second);
+                sendMessageRPC(pSharedData->userDataStore, maps, sock, toSocket);
                 input.clear();
             // Unknown RPC called
             } 
