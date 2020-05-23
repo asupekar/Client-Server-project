@@ -397,8 +397,10 @@ void sendMesssageTo(string toUserName, string message, int &toSocket, string fro
     char output[100];
     strcpy(output, "FromUser=");
     strcat(output,fromUser.c_str());
-    strcat(output,";");
+    strcat(output,"; ");
+    strcat(output, "Message=");
     strcat(output,message.c_str());
+    strcat(output,"; ");
     send(toSocket, output, (sizeof(output)/sizeof(output[0])) + 1, 0);
 }
 
@@ -432,8 +434,8 @@ void sendMessageRPC(readAndStoreUserData data, unordered_map<string, string> par
         message = p->second;
         string outputMessage = "Message successfully sent to : ";
         cout << outputMessage << passedInUsername << endl;
-        strcpy(output, outputMessage.c_str());
-        strcat(output, passedInUsername.c_str());
+        // strcpy(output, outputMessage.c_str());
+        // strcat(output, passedInUsername.c_str());
     }
 
     sendMesssageTo(passedInUsername, message, toSocket, fromUser);
@@ -443,7 +445,7 @@ void sendMessageRPC(readAndStoreUserData data, unordered_map<string, string> par
     
     // Sends result back to client
     // cout << "Sending message back to client " << clientSocket << endl;
-    send(clientSocket, output, strlen(output)+1, 0);
+    send(clientSocket, "", strlen(output)+1, 0);
     // cout << "Sending message back to client toSocket" << toSocket << endl;
     // send(toSocket, output, strlen(output)+1, 0);
 }

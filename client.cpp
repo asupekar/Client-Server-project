@@ -123,10 +123,11 @@ void sendMessage(int & sock, string & fromUser, string & toUser, bool prompt) {
         cin >> toUser;
         cin.sync();
         cin.get();
+        cout << "What message would you like to send? " << endl;  
     }
-
-    cout << "What message would you like to send? ";
+    cout << fromUser << ": ";
     cin >> message;
+    
     char buffer[1024] = { 0 };
 
     strcpy(authStr, "rpc=sendmessage;toUser=");
@@ -204,7 +205,8 @@ bool helpMessage() {
 
 // Initial parse of the RPC call. Parses by ; to separate out all of the arguments
     // End result will be a vector of format: [rpc, rpcType, parameter1, parameter1value, etc...]
-    static string parse(string input) {
+    static string parseFromUser(string input) {
+        //cout << "parseFromuser:: " << input << endl;
         vector<string> vec;
         string::size_type pos;
         string val;
@@ -214,15 +216,40 @@ bool helpMessage() {
             input.erase(0, pos+1);
         }
 
-        for(string s : vec) {
-            while((pos = s.find_first_of('=')) != string::npos){
-                string key = s.substr(0, pos);
-                // cout << "Key: " << key << endl;
-                s.erase(0, pos+1);
-                val = s.substr(0, s.length());
-                // cout << "Val: " << val << endl;
-            }
+        string s = vec.front();
+        // cout << "Front: " << s << endl;
+        while((pos = s.find_first_of('=')) != string::npos){
+            string key = s.substr(0, pos);
+            // cout << "Key: " << key << endl;
+            s.erase(0, pos+1);
+            val = s.substr(0, s.length());
+            // cout << "Val: " << val << endl;
         }
+        
+        return val;
+    }
+
+    static string parseMessage(string input) {
+        // cout << "parseFromMessage:: " << input << endl;
+        vector<string> vec;
+        string::size_type pos;
+        string val;
+        while((pos = input.find_first_of(';')) != string::npos){
+            string str = input.substr(0, pos);
+            vec.push_back(str);
+            input.erase(0, pos+1);
+        }
+
+        string s = vec.back();
+        //cout << "Back: " << s << endl;
+        while((pos = s.find_first_of('=')) != string::npos){
+            string key = s.substr(0, pos);
+            // cout << "Key: " << key << endl;
+            s.erase(0, pos+1);
+            val = s.substr(0, s.length());
+            // cout << "Val: " << val << endl;
+        }
+        
         return val;
     }
 
@@ -256,22 +283,27 @@ int main(int argc, char const *argv[])
     // Wait 10 seconds and then disconnect
 //    usleep(10000000);
     
+    int userCommand;
+    cout << "what next? 2-help " << endl;
+    cin >> userCommand;
     while (true) {
-        int userCommand;
-        cout << "what next? 2-help " << endl;
-        cin >> userCommand;
         if (userCommand == 1) {
             sendMessage(sock, username, toUser, true);
+            userCommand = 4;
         } else if(userCommand == 2) {
             helpMessage();
+            cout << "what next? 2-help " << endl;
+            cin >> userCommand;
         } else if(userCommand == 4){
             //string message;
             //char authStr[1024];
             char buffer[1024] = {0};
             while(true) {
                 while(read(sock, buffer, 1024)){
-                    printf("%s\n", buffer);
-                    string fromUser = parse(buffer);
+                    // cout << "buffer: " << buffer << endl;
+                    string fromUser = parseFromUser(buffer);
+                    string message = parseMessage(buffer);
+                    printf("%s: %s\n", fromUser.c_str(), message.c_str());
                     sendMessage(sock, username, fromUser, false);
                     /**string user = buffer;
                     while(getline(cin,message)){
