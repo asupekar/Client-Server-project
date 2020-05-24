@@ -126,8 +126,9 @@ void sendMessage(int & sock, string & fromUser, string & toUser, bool prompt) {
         cout << "What message would you like to send? " << endl;  
     }
     cout << fromUser << ": ";
+    //cin.ignore(1,'\n');
+    // getchar();
     cin >> message;
-    
     char buffer[1024] = { 0 };
 
     strcpy(authStr, "rpc=sendmessage;toUser=");
@@ -137,7 +138,9 @@ void sendMessage(int & sock, string & fromUser, string & toUser, bool prompt) {
     strcat(authStr, ";message=");
     strcat(authStr, message.c_str());
     strcat(authStr, ";");
-    send(sock, authStr, strlen(authStr)+1, 0);
+    if(message.length() > 0){
+        send(sock, authStr, strlen(authStr)+1, 0);
+    }
 
     // Output arguments are:
     // status     (This will be set to 1 if success and -1 if error)
@@ -145,7 +148,8 @@ void sendMessage(int & sock, string & fromUser, string & toUser, bool prompt) {
     // output format="Message successfully sent to <username>
     read(sock, buffer, 1024);
     // Printing out the valRead and the buffer for validation purposes
-    printf("%s\n", buffer);
+    // cout << "First character is " << buffer[0] << endl;
+    printf("%s", buffer);
     // returns entire buffer, to be parsed later
     //return buffer;
 }
@@ -199,6 +203,7 @@ bool helpMessage() {
     cout << "1. Chat" << endl;
     cout << "2. Check Online Users (Check)" << endl;
     cout << "3. Set Away Message (Away)" << endl;
+    cout << "4. Disconnect "<<endl;
     cout << "Any other number. Just to be online and be a good listener" << endl;
     return true;
 }
@@ -217,13 +222,10 @@ bool helpMessage() {
         }
 
         string s = vec.front();
-        // cout << "Front: " << s << endl;
         while((pos = s.find_first_of('=')) != string::npos){
             string key = s.substr(0, pos);
-            // cout << "Key: " << key << endl;
             s.erase(0, pos+1);
             val = s.substr(0, s.length());
-            // cout << "Val: " << val << endl;
         }
         
         return val;
@@ -241,13 +243,10 @@ bool helpMessage() {
         }
 
         string s = vec.back();
-        //cout << "Back: " << s << endl;
         while((pos = s.find_first_of('=')) != string::npos){
             string key = s.substr(0, pos);
-            // cout << "Key: " << key << endl;
             s.erase(0, pos+1);
             val = s.substr(0, s.length());
-            // cout << "Val: " << val << endl;
         }
         
         return val;
@@ -289,39 +288,30 @@ int main(int argc, char const *argv[])
     while (true) {
         if (userCommand == 1) {
             sendMessage(sock, username, toUser, true);
-            userCommand = 4;
+            userCommand = 5;
         } else if(userCommand == 2) {
             helpMessage();
             cout << "what next? 2-help " << endl;
             cin >> userCommand;
         } else if(userCommand == 4){
-            //string message;
-            //char authStr[1024];
+            disconnectRPC(sock);
+        } else {
             char buffer[1024] = {0};
             while(true) {
                 while(read(sock, buffer, 1024)){
-                    // cout << "buffer: " << buffer << endl;
                     string fromUser = parseFromUser(buffer);
                     string message = parseMessage(buffer);
-                    printf("%s: %s\n", fromUser.c_str(), message.c_str());
+                    if(message.length() > 0){
+                        printf("%s: %s\n", fromUser.c_str(), message.c_str());
+                    }
                     sendMessage(sock, username, fromUser, false);
-                    /**string user = buffer;
-                    while(getline(cin,message)){
-                        strcpy(authStr, "rpc=sendmessage;toUser=");
-                        strcat(authStr, user.c_str());
-                        strcat(authStr, ";message=");
-                        strcat(authStr, message.c_str());
-                        strcat(authStr, ";");
-                        send(sock, authStr, strlen(authStr)+1, 0);
-                    }*/
                 }
 
             }
         }
     }
-    //disconnectRPC(sock); 
-    //sendMessage(sock);
     
     return 0;
+
 
 }

@@ -142,10 +142,8 @@ public:
         for(string s : vectorInput) {
             while((pos = s.find_first_of('=')) != string::npos){
                 string key = s.substr(0, pos);
-                cout << "Key: " << key << endl;
                 s.erase(0, pos+1);
                 string val = s.substr(0, s.length());
-                cout << "Val: " << val << endl;
                 parameters.insert({key,val});
             }
         }
@@ -406,7 +404,6 @@ void sendMesssageTo(string toUserName, string message, int &toSocket, string fro
 
 // Server side sendmessage RPC
 void sendMessageRPC(readAndStoreUserData data, unordered_map<string, string> params, int &clientSocket, int &toSocket) {
-    cout << "Inside sendMessageRPC" << endl;
     // prepare return
     char output[100];
     // Creation of encryption object
@@ -415,7 +412,6 @@ void sendMessageRPC(readAndStoreUserData data, unordered_map<string, string> par
     // Looks in map of parameters to get the passed in username
     auto s = params.find("toUser");
     passedInUsername = s->second;
-    cout << "toUser is " << passedInUsername << endl;
     storedUsername = data.checkValidUsername(passedInUsername);
     // Grabs the stored username. Will match if the passed in username is valid, if not will be invalid
     // Case: Passed in username does not exist in system
@@ -426,10 +422,8 @@ void sendMessageRPC(readAndStoreUserData data, unordered_map<string, string> par
     } else {
         // Checking password
         // Looks in map of parameters to get the passed in password
-        cout << "Lets check fromUser in map" << endl;
         auto q = params.find("fromUser");
         fromUser = q->second;
-        cout << "fromUser is " << fromUser << endl;
         auto p = params.find("message");
         message = p->second;
         string outputMessage = "Message successfully sent to : ";
@@ -445,7 +439,7 @@ void sendMessageRPC(readAndStoreUserData data, unordered_map<string, string> par
     
     // Sends result back to client
     // cout << "Sending message back to client " << clientSocket << endl;
-    send(clientSocket, "", strlen(output)+1, 0);
+    send(clientSocket, "", 1, 0);
     // cout << "Sending message back to client toSocket" << toSocket << endl;
     // send(toSocket, output, strlen(output)+1, 0);
 }
