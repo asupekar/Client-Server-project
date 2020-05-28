@@ -170,6 +170,17 @@ string checkOnlineUsers(int & sock) {
     // Printing out the valRead and the buffer for validation purposes
     printf("ValRead=%zu buffer=%s\n", valRead, buffer);
     // returns entire buffer, to be parsed later
+    char* printit;
+    printit = strtok(buffer, ",=");
+    int i = 0;
+    while (printit != NULL) {
+        //skip status message
+        if (i > 2) {
+            printf("Online: %s\n", printit);
+        }
+        i++;
+        printit = strtok(NULL,",=");
+    }
     return buffer;
 }
 
@@ -283,18 +294,26 @@ int main(int argc, char const *argv[])
 //    usleep(10000000);
     
     int userCommand;
-    cout << "what next? 2-help " << endl;
+    cout << "what next? 5-help " << endl;
     cin >> userCommand;
     while (true) {
         if (userCommand == 1) {
             sendMessage(sock, username, toUser, true);
             userCommand = 5;
-        } else if(userCommand == 2) {
-            helpMessage();
-            cout << "what next? 2-help " << endl;
-            cin >> userCommand;
+        } else if (userCommand == 2) {
+            checkOnlineUsers(sock);
+            userCommand = 5;
+        } else if(userCommand == 3){
+            setAwayMessage(sock);
+            break;
         } else if(userCommand == 4){
             disconnectRPC(sock);
+            break;
+        } else if(userCommand == 5) {
+            helpMessage();
+            cout << "what next? 5-help " << endl;
+            cin >> userCommand;
+
         } else {
             char buffer[1024] = {0};
             while(true) {

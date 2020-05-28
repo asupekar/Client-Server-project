@@ -17,6 +17,7 @@ using namespace std;
 class threadData {
 private:
     string username;
+    int socket;
 public:
     string getUsername() {
         return username;
@@ -25,6 +26,16 @@ public:
     void setUsername(string un) {
         username = un;
     }
+
+    // necessary socket info for threading
+    void setSocket(int s)
+	{
+		this->socket = s;
+	}
+    int getSocket()
+	{
+		return socket;
+	}
 };
 
 // Class to encrypt and decrypt the password
@@ -331,155 +342,215 @@ public:
             return un;
         }
     }
-};
 
-// Server side connect RPC
-void connectRPC(readAndStoreUserData data, unordered_map<string, string> params, int &new_socket, threadData* thread) {
-    // prepare return
-    char output[30];
-    // Creation of encryption object
-    Encryption enc;
-    string storedUsername, storedPassword;
-    string passedInUsername, passedInPassword;
-    // Looks in map of parameters to get the passed in username
-    auto s = params.find("username");
-    passedInUsername = s->second;
-    // Grabs the stored username. Will match if the passed in username is valid, if not will be invalid
-    storedUsername = data.checkValidUsername(passedInUsername);
-//    string value = data.getUserDetail(passedInUsername, "userStatus");
-//    cout << value << endl;
-    // Case: Passed in username does not exist in system
-    if (storedUsername != passedInUsername) {
-        cout << "Bad Username passed in" << endl;
-        strcpy(output, strcpy(output, "status=-1;error=BadUsername;"));
-    // Case: Passed in username exists
-    } else {
-        // Checking password
-        // Looks in map of parameters to get the passed in password
-        auto p = params.find("password");
-        passedInPassword = p->second;
-        // Gets the stored password and decrypts it
-        storedPassword = enc.decrypt(data.getUserDetail(storedUsername, "password"));
-//        cout << storedPassword << endl;
-        // Case: Stored password matches the passed in password
-        if (storedPassword == passedInPassword) {
-            //success
-            cout << passedInUsername << " has connected to the server!" << endl;
-            data.setUserStatus(passedInUsername, "Online");
-//            string nextValue = data.getUserDetail(passedInUsername, "userStatus");
-//            cout << nextValue << endl;
-            thread->setUsername(passedInUsername);
-            strcpy(output, "status=1;error=Success;");
-        // Case: Stored password does not match the passed in password
-        } else {
-            //error
-            cout << "User found, but password was incorrect" << endl;
-            strcpy(output, "status=-1;error=BadPassword;");
+    //Gets list of users with status set to Online
+    string getOnlineUsers() {
+        //iterate
+        string output = "";
+        unordered_map<string,user>::iterator itr = userDict.begin();
+        while (itr != userDict.end())
+        {
+            //check user status
+            string un = itr->first;
+            user thisUser = itr->second;
+            string status = thisUser.getField("userStatus");
+            if (status.compare("Online") == 0) {
+                output.append(un);
+                output.append(",");
+            }
+            itr++;
         }
+        return output;
     }
-    // Sends result back to client
-    send(new_socket, output, strlen(output)+1, 0);
-}
-
-// Server side disconnect RPC
-void disconnectRPC(readAndStoreUserData data, threadData thread, int &new_socket) {
-//    cout << "enter disconnect RPC" << endl;
-    data.setUserStatus(thread.getUsername(), "Offline");
-//    string nextValue = data.getUserDetail(thread.getUsername(), "userStatus");
-//    cout << nextValue << endl;
-    char const *disconnect = "status=0;error=disconnected";
-    send(new_socket, disconnect, strlen(disconnect)+1, 0);
-}
-
-void sendMesssageTo(string toUserName, string message, int &toSocket, string fromUser) {
-    char output[100];
-    strcpy(output, "FromUser=");
-    strcat(output,fromUser.c_str());
-    strcat(output,"; ");
-    strcat(output, "Message=");
-    strcat(output,message.c_str());
-    strcat(output,"; ");
-    send(toSocket, output, (sizeof(output)/sizeof(output[0])) + 1, 0);
-}
-
-// Server side sendmessage RPC
-void sendMessageRPC(readAndStoreUserData data, unordered_map<string, string> params, int &clientSocket, int &toSocket) {
-    // prepare return
-    char output[100];
-    // Creation of encryption object
-    string storedUsername, storedPassword;
-    string passedInUsername, message, fromUser;
-    // Looks in map of parameters to get the passed in username
-    auto s = params.find("toUser");
-    passedInUsername = s->second;
-    storedUsername = data.checkValidUsername(passedInUsername);
-    // Grabs the stored username. Will match if the passed in username is valid, if not will be invalid
-    // Case: Passed in username does not exist in system
-    if (storedUsername != passedInUsername) {
-        cout << "Bad Username passed in" << endl;
-        strcpy(output, strcpy(output, "status=-1;error=BadUsername;"));
-    // Case: Passed in username exists
-    } else {
-        // Checking password
-        // Looks in map of parameters to get the passed in password
-        auto q = params.find("fromUser");
-        fromUser = q->second;
-        auto p = params.find("message");
-        message = p->second;
-        string outputMessage = "Message successfully sent to : ";
-        cout << outputMessage << passedInUsername << endl;
-        // strcpy(output, outputMessage.c_str());
-        // strcat(output, passedInUsername.c_str());
-    }
-
-    sendMesssageTo(passedInUsername, message, toSocket, fromUser);
-    
-    //testing a wait
-    // usleep(5000000);
-    
-    // Sends result back to client
-    // cout << "Sending message back to client " << clientSocket << endl;
-    send(clientSocket, "", 1, 0);
-    // cout << "Sending message back to client toSocket" << toSocket << endl;
-    // send(toSocket, output, strlen(output)+1, 0);
-}
+};
 
 // ServerContextData in example
 // Information that is shared to all threads
 class SharedServerData {
 private:
-   // pthread_mutex_t lock;
+    pthread_mutex_t lock;
    // pthread_cond_t fill;
-    int socket;
+    int lastSocket;
     unordered_map<string, int> clientSocketMapping;
+    readAndStoreUserData userDataStore;
     
 public:
-    //public for now
-    readAndStoreUserData userDataStore;
-
     SharedServerData() 
     {
-        socket = 0;
+        userDataStore = readAndStoreUserData();
     }
 
-    // necessary socket info for threading
+    // tracking current thread socket in threadData
+    // this is for new thread creation
     void setSocket(int s)
 	{
-		this->socket = s;
+		this->lastSocket = s;
 	}
     int getSocket()
-	{
-		return socket;
-	}
+    {
+        return lastSocket;
+    }
 
     void setClientSocketMapping(string username, int socket){
+        pthread_mutex_lock(&lock); 
         clientSocketMapping[username] = socket;
+        pthread_mutex_unlock(&lock); 
     }
 
     int getSocketMappingForClient(string username){
         return clientSocketMapping.find(username) -> second;
     }
+
+    readAndStoreUserData* getUserData() {
+        return &userDataStore;
+    }
+
+    string getClients() {
+        //iterate
+        pthread_mutex_lock(&lock); 
+        string output = "";
+        unordered_map<string,int>::iterator itr = clientSocketMapping.begin();
+        while (itr != clientSocketMapping.end())
+        {
+            output.append(itr->first);
+            output.append(",");
+            itr++;
+        }
+        pthread_mutex_unlock(&lock); 
+        return output;
+    }
 };
+
+class RPC 
+{
+public:
+    // Server side connect RPC
+    static void connectRPC(SharedServerData *sData, unordered_map<string, string> params, threadData* thread) {        
+        // prepare return
+        char output[30];
+        // Creation of encryption object
+        Encryption enc;
+        string storedUsername, storedPassword;
+        string passedInUsername, passedInPassword;
+        // Looks in map of parameters to get the passed in username
+        auto s = params.find("username");
+        passedInUsername = s->second;
+        // Grabs the stored username. Will match if the passed in username is valid, if not will be invalid
+        storedUsername = sData->getUserData()->checkValidUsername(passedInUsername);
+        // Case: Passed in username does not exist in system
+        if (storedUsername != passedInUsername) {
+            cout << "Bad Username passed in" << endl;
+            strcpy(output, strcpy(output, "status=-1;error=BadUsername;"));
+        // Case: Passed in username exists
+        } else {
+            // Checking password
+            // Looks in map of parameters to get the passed in password
+            auto p = params.find("password");
+            passedInPassword = p->second;
+            // Gets the stored password and decrypts it
+            storedPassword = enc.decrypt(sData->getUserData()->getUserDetail(storedUsername, "password"));
+            // cout << storedPassword << endl;
+            // Case: Stored password matches the passed in password
+            if (storedPassword == passedInPassword) {
+                //success
+                cout << passedInUsername << " has connected to the server!" << endl;
+                sData->getUserData()->setUserStatus(passedInUsername, "Online");
+                // string nextValue = data.getUserDetail(passedInUsername, "userStatus");
+                // cout << nextValue << endl;
+                thread->setUsername(passedInUsername);
+                strcpy(output, "status=1;error=Success;");
+            // Case: Stored password does not match the passed in password
+            } else {
+                //error
+                cout << "User found, but password was incorrect" << endl;
+                strcpy(output, "status=-1;error=BadPassword;");
+            }
+        }
+        // Sends result back to client
+        send(thread->getSocket(), output, strlen(output)+1, 0);
+    }
+
+    // Server side disconnect RPC
+    static void disconnectRPC(SharedServerData *sData, threadData* thread) {
+        // set user status as offline
+        sData->getUserData()->setUserStatus(thread->getUsername(), "Offline");
+        char const *disconnect = "status=0;error=disconnected";
+        send(thread->getSocket(), disconnect, strlen(disconnect)+1, 0);
+    }
+
+    // Send message
+    static void sendMessageTo(string toUserName, string message, int &toSocket, string fromUser) {
+        char output[100];
+        strcpy(output, "FromUser=");
+        strcat(output,fromUser.c_str());
+        strcat(output,"; ");
+        strcat(output, "Message=");
+        strcat(output,message.c_str());
+        strcat(output,"; ");
+        send(toSocket, output, (sizeof(output)/sizeof(output[0])) + 1, 0);
+    }
+
+    // Server side sendmessage RPC
+    static void sendMessageRPC(readAndStoreUserData * data, unordered_map<string, string> params, int &clientSocket, int &toSocket) {
+        // prepare return
+        char output[100];
+        // Creation of encryption object
+        string storedUsername, storedPassword;
+        string passedInUsername, message, fromUser;
+        // Looks in map of parameters to get the passed in username
+        auto s = params.find("toUser");
+        passedInUsername = s->second;
+        storedUsername = data->checkValidUsername(passedInUsername);
+        // Grabs the stored username. Will match if the passed in username is valid, if not will be invalid
+        // Case: Passed in username does not exist in system
+        if (storedUsername != passedInUsername) {
+            cout << "Bad Username passed in" << endl;
+            strcpy(output, strcpy(output, "status=-1;error=BadUsername;"));
+        // Case: Passed in username exists
+        } else {
+            // Checking password
+            // Looks in map of parameters to get the passed in password
+            auto q = params.find("fromUser");
+            fromUser = q->second;
+            auto p = params.find("message");
+            message = p->second;
+            string outputMessage = "Message successfully sent to : ";
+            cout << outputMessage << passedInUsername << endl;
+            // strcpy(output, outputMessage.c_str());
+            // strcat(output, passedInUsername.c_str());
+        }
+
+        sendMessageTo(passedInUsername, message, toSocket, fromUser);
+        
+        //testing a wait
+        // usleep(5000000);
+        
+        // Sends result back to client
+        // cout << "Sending message back to client " << clientSocket << endl;
+        send(clientSocket, "", 1, 0);
+        // cout << "Sending message back to client toSocket" << toSocket << endl;
+        // send(toSocket, output, strlen(output)+1, 0);
+    }
+        
+    // Server side RPC to check online users
+    static void checkOnlineUsersRPC(SharedServerData *sData, threadData *tData) {
+        string clientList = sData->getUserData()->getOnlineUsers();
+        char * output = new char[clientList.size() + 30];
+
+        if (clientList.empty()) {
+            // error
+            strcpy(output, "Status=-1,Error=NoClients");
+        } else {
+            strcpy(output, "Status=1,OnlineUsers=");
+            strcat(output, clientList.c_str());
+        }
+        
+        send(tData->getSocket(), output, clientList.size() + 30, 0);
+        delete [] output;
+    }
+
+};
+
 
 
 // Server class to store server functionality
@@ -490,7 +561,6 @@ private:
 	int addrlen = sizeof(address);
 	int port;
     int maxConn;
-    readAndStoreUserData userDataStore;
     SharedServerData *sharedData;
 
 public:
@@ -511,7 +581,6 @@ public:
     // Function: start server functionality
 	int startServer()
 	{
-		userDataStore = readAndStoreUserData();
         bindSocket(port);
         sharedData = new SharedServerData();
 		return 0;
@@ -591,16 +660,20 @@ public:
     }
 
     // Function to manage a thread
+    // must be static
+    // must accept void* args
    static void *rpcThread(void *arg)
     {
         int valread;
-        int sock;
         char buffer[1024] = { 0 };
 
         // read data
-        SharedServerData *pSharedData = (SharedServerData *) arg;
-        sock = pSharedData->getSocket();
+        SharedServerData * pSharedData = (SharedServerData *) arg;
         threadData thread;
+
+        //passing sockets
+        int sock = pSharedData->getSocket();
+        thread.setSocket(sock);
 
         // User continuously listens for new RPC requests from connected user
         while ((valread = read(sock, buffer, 1024)) != 0) {
@@ -613,14 +686,13 @@ public:
             if(input.whichRPC() == "connect") {
                 cout << "Connect called" << endl;
                 unordered_map<string, string> maps = input.restOfParameters();
-                connectRPC(pSharedData->userDataStore, maps, sock, &thread);
-//                cout << thread.getUsername() << endl;
+                RPC::connectRPC(pSharedData, maps, &thread);
                 pSharedData->setClientSocketMapping(thread.getUsername(), sock);
                 input.clear();
             // Disconnect called
             } else if(input.whichRPC() == "disconnect") {
                 cout << "Disconnect called" << endl;
-                disconnectRPC(pSharedData->userDataStore, thread, sock);
+                RPC::disconnectRPC(pSharedData, &thread);
                 input.clear();
                 pthread_exit(NULL);
             // Send message called
@@ -629,10 +701,20 @@ public:
                 cout << "Send message called" << endl;
                 unordered_map<string, string> maps = input.restOfParameters();
                 int toSocket = pSharedData->getSocketMappingForClient(maps.find("toUser")->second);
-                sendMessageRPC(pSharedData->userDataStore, maps, sock, toSocket);
+                RPC::sendMessageRPC(pSharedData->getUserData(), maps, sock, toSocket);
+                input.clear();
+            // Set Away Message called
+            } 
+            else if(input.whichRPC() == "setaway") {
+                cout << "set away message called" << endl;
+            // Check Online Users called
+            } 
+            else if(input.whichRPC() == "checkonlineusers") {
+                cout << "Check Online Users called" << endl;
+                RPC::checkOnlineUsersRPC(pSharedData, &thread);
                 input.clear();
             // Unknown RPC called
-            } 
+            }
             else {
                 char const *unknownRPC = "status=-1;error=unknownRPC";
                 send(sock, unknownRPC, strlen(unknownRPC)+1, 0);
@@ -647,13 +729,15 @@ public:
 };
 
 int main(int argc, char const *argv[]) {
+    cout << "Starting..." << endl;
     // build a Server object
     int nPort = atoi((char const  *)argv[1]);
-    Server *server = new Server(nPort);
 
+    Server *server = new Server(nPort);
     // reads in user data
-    // start listening
     server->startServer();
+    cout << "Port " << nPort << " is up." << endl;
+    // start listening
     server->threadLoop();
-    
+    // All done
 }
