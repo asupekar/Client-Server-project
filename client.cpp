@@ -149,6 +149,7 @@ void sendMessage(int & sock, string & fromUser, string & toUser, bool prompt) {
     read(sock, buffer, 1024);
     // Printing out the valRead and the buffer for validation purposes
     // cout << "First character is " << buffer[0] << endl;
+    //cout << "Message received " << endl;
     printf("%s", buffer);
     // returns entire buffer, to be parsed later
     //return buffer;
@@ -187,13 +188,14 @@ string checkOnlineUsers(int & sock) {
 // Client side set away message RPC
 string setAwayMessage(int & sock) {
     char authStr[1024];
-    char awayMessage[512];
+    string awayMessage;
 
     cout << "What away message would you like to set? ";
     cin >> awayMessage;
 
     strcpy(authStr, "rpc=setaway;awayMessage=");
-    strcat(authStr, awayMessage);
+    strcat(authStr, awayMessage.c_str());
+    strcat(authStr, ";");
     send(sock, authStr, strlen(authStr)+1, 0);
 
     // Output arguments are:
@@ -299,13 +301,12 @@ int main(int argc, char const *argv[])
     while (true) {
         if (userCommand == 1) {
             sendMessage(sock, username, toUser, true);
-            userCommand = 5;
+            userCommand = 6;
         } else if (userCommand == 2) {
             checkOnlineUsers(sock);
             userCommand = 5;
         } else if(userCommand == 3){
             setAwayMessage(sock);
-            break;
         } else if(userCommand == 4){
             disconnectRPC(sock);
             break;
@@ -316,21 +317,22 @@ int main(int argc, char const *argv[])
 
         } else {
             char buffer[1024] = {0};
-            while(true) {
-                while(read(sock, buffer, 1024)){
-                    string fromUser = parseFromUser(buffer);
-                    string message = parseMessage(buffer);
-                    if(message.length() > 0){
-                        printf("%s: %s\n", fromUser.c_str(), message.c_str());
-                    }
+            cout << "Outside while loop"<< endl;
+            while(read(sock, buffer, 1024)){
+                string fromUser = parseFromUser(buffer);
+                string message = parseMessage(buffer);
+                if(message.length() > 0 && (message.compare("SetAway")!=0)){
+                    printf("%s: %s\n", fromUser.c_str(), message.c_str());
                     sendMessage(sock, username, fromUser, false);
+                    userCommand = 6;
+                }else{
+                    cout << "Disconnecting since away..."<< endl;
+                    userCommand = 4;
                 }
-
-            }
+                break;
+            }   
         }
     }
     
     return 0;
-
-
 }
