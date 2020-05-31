@@ -113,7 +113,7 @@ string connectRPC(int & sock, string & username, string & password)
 }
 
 // Client side send message RPC
-void sendMessage(int & sock, string & fromUser, string & toUser, bool prompt) {
+int sendMessage(int & sock, string & fromUser, string & toUser, bool prompt) {
     char authStr[1024];
     string message;
 
@@ -152,8 +152,19 @@ void sendMessage(int & sock, string & fromUser, string & toUser, bool prompt) {
     // cout << "First character is " << buffer[0] << endl;
     //cout << "Message received " << endl;
     printf("%s\n", buffer);
-    // returns entire buffer, to be parsed later
-    //return buffer;
+    
+    char *output = NULL;
+    char substring1[] = "offline at this moment";
+    output = strstr (buffer,substring1);
+    if(output) {
+        return -1;
+    }
+    char substring2[] = "SetAwayMessage=";
+    output = strstr (buffer,substring2);
+    if(output) {
+        return -2;
+    }
+    return 0;
 }
 
 // Client side check online user RPC
@@ -214,7 +225,7 @@ string setAwayMessage(int & sock) {
 }
 
 bool helpMessage() {
-    cout << "Available commands: " << endl;
+    cout << "\nAvailable commands: " << endl;
     cout << "1. Chat" << endl;
     cout << "2. Check Online Users (Check)" << endl;
     cout << "3. Set Away Message (Away)" << endl;
@@ -302,8 +313,12 @@ int main(int argc, char const *argv[])
     cin >> userCommand;
     while (true) {
         if (userCommand == 1) {
-            sendMessage(sock, username, toUser, true);
-            userCommand = 6;
+            int ret = sendMessage(sock, username, toUser, true);
+            if(ret == -1 || ret == -2) {
+                userCommand = 4;
+            }else{
+                userCommand = 6;
+            }
         } else if (userCommand == 2) {
             checkOnlineUsers(sock);
             userCommand = 5;

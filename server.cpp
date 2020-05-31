@@ -554,7 +554,7 @@ public:
                 cout << "User not available " << endl;
                 cout << "SetAwayMessage: " << setAwayMessage << endl;
                 char output[100];
-                strcpy(output, (passedInUsername+ " is not available. ").c_str());
+                strcpy(output, (passedInUsername+ " is away with ").c_str());
                 strcat(output, "SetAwayMessage=");
                 strcat(output,setAwayMessage.c_str());
                 strcat(output,";\n");
@@ -781,15 +781,27 @@ public:
             else if(input.whichRPC() == "sendmessage") {
                 cout << "Send message called" << endl;
                 unordered_map<string, string> maps = input.restOfParameters();
-                int toSocket = pSharedData->getSocketMappingForClient(maps.find("toUser")->second);
-                string output = maps.find("toUser")->second + " is offline at this moment. Please try again later";
-                if(toSocket == -1){
-                    cout << "toSocket is -1" << endl;
-                    write(sock, output.c_str(), output.length()+1);
-                    cout << "Successfully wrote " << endl;
+                string toUser = maps.find("toUser")->second;
+
+                string awayMessage = getSetAwayMessage(toUser);
+                char output[100];
+                if(awayMessage.length() != 0){
+                    strcpy(output, (toUser+ " is away with ").c_str());
+                    strcat(output, "SetAwayMessage=");
+                    strcat(output,awayMessage.c_str());
+                    strcat(output,";\n");
+                    write(sock, output, (sizeof(output)/sizeof(output[0])) + 1);
                 }
-                else{
-                    RPC::sendMessageRPC(pSharedData->getUserData(), maps, sock, toSocket);
+                else {
+                    int toSocket = pSharedData->getSocketMappingForClient(toUser);
+                    if(toSocket == -1){
+                        strcpy(output, (toUser + " is offline at this moment. Please try again later!!!").c_str());
+                        cout << "toSocket is -1" << endl;
+                        write(sock, output, (sizeof(output)/sizeof(output[0])) + 1);
+                    }
+                    else{
+                        RPC::sendMessageRPC(pSharedData->getUserData(), maps, sock, toSocket);
+                    }
                 }
                 input.clear();
             // Set Away Message called
