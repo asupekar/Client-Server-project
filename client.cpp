@@ -317,7 +317,6 @@ int main(int argc, char const *argv[])
 
         } else {
             char buffer[1024] = {0};
-            cout << "Outside while loop"<< endl;
             while(read(sock, buffer, 1024)){
                 string fromUser = parseFromUser(buffer);
                 string message = parseMessage(buffer);

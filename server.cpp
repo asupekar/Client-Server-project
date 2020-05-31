@@ -580,7 +580,7 @@ public:
 
 };
 
-void parseCsv(string username, string message){
+void parseAndUpdateCsv(string username, string message){
     fstream myfile, fout;
     string line, word, user;
 
@@ -593,8 +593,11 @@ void parseCsv(string username, string message){
         //cout << line << endl;
         if (line.find(username) != std::string::npos) {
             std::cout << "found!" << '\n';
-            if((line.at(line.length() - 1)) == '\n') {
-                line.erase(line.length());
+            if(line.at(line.length() - 1) == '\r') {
+                line.erase(line.length()-1);
+            }
+            if(message.at(message.length() - 1) == '\r'){
+                message.erase(message.length()-1);
             }
             fout << line << message << "," << endl;
         }else{
@@ -622,7 +625,7 @@ static void setAwayMessage(string username, int &sock, unordered_map<string, str
         message = s->second;
         cout << "AwayMessage: " << message << endl;
 
-        parseCsv(username, message);
+        parseAndUpdateCsv(username, message);
 }
 
 // Server class to store server functionality
