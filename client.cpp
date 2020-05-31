@@ -146,11 +146,12 @@ void sendMessage(int & sock, string & fromUser, string & toUser, bool prompt) {
     // status     (This will be set to 1 if success and -1 if error)
     // error      (This will be some sort of message (error or success))
     // output format="Message successfully sent to <username>
-    read(sock, buffer, 1024);
+    size_t valRead;
+    valRead = read(sock, buffer, 1024);
     // Printing out the valRead and the buffer for validation purposes
     // cout << "First character is " << buffer[0] << endl;
     //cout << "Message received " << endl;
-    printf("%s", buffer);
+    printf("%s\n", buffer);
     // returns entire buffer, to be parsed later
     //return buffer;
 }

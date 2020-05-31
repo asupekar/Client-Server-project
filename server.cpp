@@ -385,7 +385,10 @@ public:
     }
 
     int getSocketMappingForClient(string username){
-        return clientSocketMapping.find(username) -> second;
+        if (clientSocketMapping.find(username) != clientSocketMapping.end()) {
+            return clientSocketMapping.find(username) -> second;
+        }
+        return -1;
     }
 
     readAndStoreUserData* getUserData() {
@@ -779,7 +782,15 @@ public:
                 cout << "Send message called" << endl;
                 unordered_map<string, string> maps = input.restOfParameters();
                 int toSocket = pSharedData->getSocketMappingForClient(maps.find("toUser")->second);
-                RPC::sendMessageRPC(pSharedData->getUserData(), maps, sock, toSocket);
+                string output = maps.find("toUser")->second + " is offline at this moment. Please try again later";
+                if(toSocket == -1){
+                    cout << "toSocket is -1" << endl;
+                    write(sock, output.c_str(), output.length()+1);
+                    cout << "Successfully wrote " << endl;
+                }
+                else{
+                    RPC::sendMessageRPC(pSharedData->getUserData(), maps, sock, toSocket);
+                }
                 input.clear();
             // Set Away Message called
             } 
