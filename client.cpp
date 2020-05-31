@@ -206,7 +206,8 @@ string setAwayMessage(int & sock) {
     char buffer[1024] = { 0 };
     valRead = read(sock, buffer, 1024);
     // Printing out the valRead and the buffer for validation purposes
-    printf("ValRead=%zu buffer=%s\n", valRead, buffer);
+    //printf("ValRead=%zu buffer=%s\n", valRead, buffer);
+    printf("%s\n", buffer);
     // returns entire buffer, to be parsed later
     return buffer;
 }
@@ -307,6 +308,7 @@ int main(int argc, char const *argv[])
             userCommand = 5;
         } else if(userCommand == 3){
             setAwayMessage(sock);
+            userCommand = 4;
         } else if(userCommand == 4){
             disconnectRPC(sock);
             break;

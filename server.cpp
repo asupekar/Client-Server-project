@@ -616,7 +616,7 @@ void parseAndUpdateCsv(string username, string message){
     readAndStoreUserData();
 }
 
-static void setAwayMessage(string username, int &sock, unordered_map<string, string> params){
+static void setAwayMessageRPC(string username, int &sock, unordered_map<string, string> params){
         //cout<<"Inside set away message!"<<endl;
         string message;
         cout << message << endl;
@@ -626,6 +626,8 @@ static void setAwayMessage(string username, int &sock, unordered_map<string, str
         cout << "AwayMessage: " << message << endl;
 
         parseAndUpdateCsv(username, message);
+        string success = "SetAwayMessage was set successfully";
+        send(sock, success.c_str(), success.length()+1, 0);
 }
 
 // Server class to store server functionality
@@ -789,7 +791,7 @@ public:
 		            std::cout << "{" << pair.first << ": " << pair.second << "}\n";
 	            }
                 
-                setAwayMessage(thread.getUsername(), sock, maps);
+                setAwayMessageRPC(thread.getUsername(), sock, maps);
                 input.clear();
             // Check Online Users called
             } 
