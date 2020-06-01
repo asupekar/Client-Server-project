@@ -349,6 +349,42 @@ public:
         }
         return output;
     }
+
+    void parseAndUpdateCsv(string username, string message){
+        fstream myfile, fout;
+        string line, word, user;
+
+        cout << "Opening csv file" << endl;
+        myfile.open ("userInfo.csv", ios::in);
+        fout.open ("userInfo_tmp.csv", ios::out);
+
+        while(!myfile.eof()){ 
+            getline(myfile, line); 
+            //cout << line << endl;
+            if (line.find(username) != std::string::npos) {
+                std::cout << "found!" << '\n';
+                if(line.at(line.length() - 1) == '\r') {
+                    line.erase(line.length()-1);
+                }
+                if(message.at(message.length() - 1) == '\r'){
+                    message.erase(message.length()-1);
+                }
+                fout << line << message << "," << endl;
+            }else{
+                fout << line << endl;
+            }
+        }
+
+        myfile.close(); 
+        fout.close();
+
+        // removing the existing file 
+        remove("userInfo.csv"); 
+    
+        // renaming the updated file with the existing file name 
+        rename("userInfo_tmp.csv", "userInfo.csv"); 
+        readAndStoreUserData();
+    }
 };
 
 // ServerContextData in example
@@ -373,6 +409,7 @@ public:
 	{
 		this->lastSocket = s;
 	}
+
     int getSocket()
     {
         return lastSocket;
@@ -496,7 +533,7 @@ public:
     }
 
     // Server side disconnect RPC
-    static void disconnectRPC(SharedServerData *sData, threadData* thread) {
+    static void disconnectRPC(SharedServerData *sData, threadData *thread) {
         // set user status as offline
         sData->getUserData()->setUserStatus(thread->getUsername(), "Offline");
         char const *disconnect = "status=0;error=disconnected";
@@ -516,29 +553,44 @@ public:
     }
     
     // Server side sendmessage RPC
-    static void sendMessageRPC(readAndStoreUserData * data, unordered_map<string, string> params, int &clientSocket, int &toSocket) {
+    static void sendMessageRPC(SharedServerData * sharedData, unordered_map<string, string> params, threadData *thread) {
         // prepare return
         cout << "SendMessageRPC called" << endl;
+
+        // using output to store status info
+        // we send output back no matter what
         char output[100];
+
         // Creation of encryption object
         string storedUsername, storedPassword;
         string passedInUsername, message, fromUser;
         string setAwayMessage;
+
         // Looks in map of parameters to get the passed in username
+        readAndStoreUserData * data = sharedData->getUserData();
         auto s = params.find("toUser");
         passedInUsername = s->second;
         storedUsername = data->checkValidUsername(passedInUsername);
+
+        int toSocket = sharedData->getSocketMappingForClient(passedInUsername);
+
         // Grabs the stored username. Will match if the passed in username is valid, if not will be invalid
         // Case: Passed in username does not exist in system
         if (storedUsername != passedInUsername) {
             cout << "Bad Username passed in" << endl;
             strcpy(output, strcpy(output, "status=-1;error=BadUsername;"));
-        // Case: Passed in username exists
+
+        // Case: user is not online
+        } else if (toSocket == -1) {
+            cout << passedInUsername << " is offline at this moment. Please try again later!!!" << endl;
+            strcpy(output, "status=-1;error=NotOnline");
+
+        // Case: Passed in username exists and user is online
         } else {
-            // Check setaway mesaage is set for passedInUsername
+            // Check away message is set for passedInUsername
             setAwayMessage = getSetAwayMessage(passedInUsername);
-            auto q = params.find("fromUser");
-            fromUser = q->second;
+
+            // if there isn't an away message
             if (setAwayMessage.length() == 0){
                 cout << "User is available " << endl;
                 auto p = params.find("message");
@@ -547,21 +599,28 @@ public:
                 cout << outputMessage << passedInUsername << endl;
                 // strcpy(output, outputMessage.c_str());
                 // strcat(output, passedInUsername.c_str());
-                sendMessageTo(passedInUsername, message, toSocket, fromUser);
+                sendMessageTo(passedInUsername, message, toSocket, thread->getUsername());
                 // Sends message back to client
-                send(clientSocket, "", 1, 0);
-            }else{
+                strcpy(output, "status=1;error=Success");
+
+            // if there is an away message
+            } else {
                 cout << "User not available " << endl;
                 cout << "SetAwayMessage: " << setAwayMessage << endl;
-                char output[100];
-                strcpy(output, (passedInUsername+ " is away with ").c_str());
-                strcat(output, "SetAwayMessage=");
+                strcpy(output,"status=-1;error=");
+                strcat(output, passedInUsername.c_str());
+                strcat(output," is away with SetAwayMessage=");
                 strcat(output,setAwayMessage.c_str());
-                strcat(output,";\n");
-                sendMessageTo(passedInUsername, "SetAway", toSocket, fromUser);
-                send(clientSocket, output, (sizeof(output)/sizeof(output[0])) + 1, 0);
+                //sendMessageTo(passedInUsername, "SetAway", toSocket, thread->getUsername());
             }
         }
+
+        // Sends success or error back to client
+        char temp[2] = {';'};
+        strcat(output,temp);
+        send(thread->getSocket(), output, 100, 0);
+        // cout << "Sending message back to client toSocket" << toSocket << endl;
+        // send(toSocket, output, strlen(output)+1, 0);
     }
         
     // Server side RPC to check online users
@@ -581,45 +640,7 @@ public:
         delete [] output;
     }
 
-};
-
-void parseAndUpdateCsv(string username, string message){
-    fstream myfile, fout;
-    string line, word, user;
-
-    cout << "Opening csv file" << endl;
-    myfile.open ("userInfo.csv", ios::in);
-    fout.open ("userInfo_tmp.csv", ios::out);
-
-    while(!myfile.eof()){ 
-        getline(myfile, line); 
-        //cout << line << endl;
-        if (line.find(username) != std::string::npos) {
-            std::cout << "found!" << '\n';
-            if(line.at(line.length() - 1) == '\r') {
-                line.erase(line.length()-1);
-            }
-            if(message.at(message.length() - 1) == '\r'){
-                message.erase(message.length()-1);
-            }
-            fout << line << message << "," << endl;
-        }else{
-            fout << line << endl;
-        }
-    }
-
-    myfile.close(); 
-    fout.close();
-
-    // removing the existing file 
-    remove("userInfo.csv"); 
-  
-    // renaming the updated file with the existing file name 
-    rename("userInfo_tmp.csv", "userInfo.csv"); 
-    readAndStoreUserData();
-}
-
-static void setAwayMessageRPC(string username, int &sock, unordered_map<string, string> params){
+    static void setAwayMessageRPC(SharedServerData * sharedData, threadData * thread, unordered_map<string, string> params){
         //cout<<"Inside set away message!"<<endl;
         string message;
         cout << message << endl;
@@ -627,11 +648,12 @@ static void setAwayMessageRPC(string username, int &sock, unordered_map<string, 
         auto s = params.find("awayMessage");
         message = s->second;
         cout << "AwayMessage: " << message << endl;
-
-        parseAndUpdateCsv(username, message);
+        sharedData->getUserData()->parseAndUpdateCsv(thread->getUsername(), message);
         string success = "SetAwayMessage was set successfully";
-        send(sock, success.c_str(), success.length()+1, 0);
-}
+        send(thread->getSocket(), success.c_str(), success.length()+1, 0);
+    }
+};
+
 
 // Server class to store server functionality
 class Server {
@@ -781,28 +803,8 @@ public:
             else if(input.whichRPC() == "sendmessage") {
                 cout << "Send message called" << endl;
                 unordered_map<string, string> maps = input.restOfParameters();
-                string toUser = maps.find("toUser")->second;
-
-                string awayMessage = getSetAwayMessage(toUser);
-                char output[100];
-                if(awayMessage.length() != 0){
-                    strcpy(output, (toUser+ " is away with ").c_str());
-                    strcat(output, "SetAwayMessage=");
-                    strcat(output,awayMessage.c_str());
-                    strcat(output,";\n");
-                    write(sock, output, (sizeof(output)/sizeof(output[0])) + 1);
-                }
-                else {
-                    int toSocket = pSharedData->getSocketMappingForClient(toUser);
-                    if(toSocket == -1){
-                        strcpy(output, (toUser + " is offline at this moment. Please try again later!!!").c_str());
-                        cout << "toSocket is -1" << endl;
-                        write(sock, output, (sizeof(output)/sizeof(output[0])) + 1);
-                    }
-                    else{
-                        RPC::sendMessageRPC(pSharedData->getUserData(), maps, sock, toSocket);
-                    }
-                }
+                // note: moved functionality to sendmessage
+                RPC::sendMessageRPC(pSharedData, maps, &thread);
                 input.clear();
             // Set Away Message called
             } 
@@ -814,7 +816,7 @@ public:
 		            std::cout << "{" << pair.first << ": " << pair.second << "}\n";
 	            }
                 
-                setAwayMessageRPC(thread.getUsername(), sock, maps);
+                RPC::setAwayMessageRPC(pSharedData, &thread, maps);
                 input.clear();
             // Check Online Users called
             } 
@@ -833,7 +835,6 @@ public:
         //pthread_exit(NULL);
         return NULL;
     }
-
 
 };
 
