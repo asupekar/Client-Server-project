@@ -222,7 +222,7 @@ int sendMessage(GlobalContext * clientData, bool prompt, string message="", stri
     char sendBuffer[buffersize];
     strcpy(sendBuffer, "rpc=sendmessage;toUser=");
     // prompt
-    if (prompt == true)
+    if (prompt)
     {
         // get user
         if (clientData->getChatPartner().empty()) {
@@ -534,7 +534,7 @@ static void * readThread(void * input) {
 
                 // if the message was to leave chat, then exit
                 if (message.compare("End Chat") ==  0) {
-                    cout << "Leaving one-on-one chat with " << fromUser << endl;
+                    cout << "Leaving one-on-one chat with " << fromUser << " Press enter to continue:" << endl;
                     //data->setChatPartner("");
                     data->setChatMode(false);
                     pthread_exit(NULL);
@@ -626,6 +626,7 @@ void sendLoop(GlobalContext * data) {
         } else if(userCommand == 4){
             data->setConnect(false);
             //wait to give time for the readthread to close
+            cout << "Goodbye " << data->getUser() << endl;
             usleep(500500);
             disconnectRPC(sock);
             break;

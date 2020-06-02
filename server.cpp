@@ -211,10 +211,12 @@ public:
         }
     }
 
+    // Sets a status for a user (online or offline)
     void setStatus(string& status) {
         userStatus.assign(status);
     }
 
+    //
     void setUserMessage(string& message) {
         userMessage.assign(message);
     }
@@ -294,13 +296,14 @@ public:
 
     // Gets the desired user detail for a specific username
     string getUserDetail(const string &un, const string &detail) {
-        string retrievedValue;
+//        string retrievedValue;
         user foundUser = findUser(un);
-        retrievedValue = foundUser.getField(detail);
-        cout << "Retrieved value: " << retrievedValue << endl;
-        return retrievedValue;
+        return foundUser.getField(detail);
+//        cout << "Retrieved value: " << retrievedValue << endl;
+//        return retrievedValue;
     };
 
+    // Sets the user status for the user as requested
     void setUserStatus(const string &un, string detail) {
 //        cout << "setUserStatus method: " << detail << endl;
         user foundUser = findUser(un);
@@ -310,6 +313,7 @@ public:
         userDict.insert({un, foundUser});
     };
 
+    // Assigns a user message for the user (used as an away message in this implementation)
     void setUserMessage(const string &un, string detail) {
         user foundUser = findUser(un);
         foundUser.setUserMessage(detail);
@@ -353,48 +357,12 @@ public:
         return output;
     };
 };
-//    void parseAndUpdateCsv(string username, string message){
-//        fstream myfile, fout;
-//        string line, word, user;
-//
-//        cout << "Opening csv file" << endl;
-//        myfile.open ("userInfo.csv", ios::in);
-//        fout.open ("userInfo_tmp.csv", ios::out);
-//
-//        while(!myfile.eof()){
-//            getline(myfile, line);
-//            //cout << line << endl;
-//            if (line.find(username) != std::string::npos) {
-//                std::cout << "found!" << '\n';
-//                if(line.at(line.length() - 1) == '\r') {
-//                    line.erase(line.length()-1);
-//                }
-//                if(message.at(message.length() - 1) == '\r'){
-//                    message.erase(message.length()-1);
-//                }
-//                fout << line << message << "," << endl;
-//            }else{
-//                fout << line << endl;
-//            }
-//        }
-//
-//        myfile.close();
-//        fout.close();
-//
-//        // removing the existing file
-//        remove("userInfo.csv");
-//
-//        // renaming the updated file with the existing file name
-//        rename("userInfo_tmp.csv", "userInfo.csv");
-//        readAndStoreUserData();
-//    }
 
 // ServerContextData in example
 // Information that is shared to all threads
 class SharedServerData {
 private:
     pthread_mutex_t lock;
-    // pthread_cond_t fill;
     int lastSocket;
     unordered_map<string, int> clientSocketMapping;
     readAndStoreUserData userDataStore;
@@ -433,57 +401,7 @@ public:
     readAndStoreUserData* getUserData() {
         return &userDataStore;
     }
-
-    string getClients() {
-        //iterate
-        pthread_mutex_lock(&lock);
-        string output = "";
-        unordered_map<string,int>::iterator itr = clientSocketMapping.begin();
-        while (itr != clientSocketMapping.end())
-        {
-            output.append(itr->first);
-            output.append(",");
-            itr++;
-        }
-        pthread_mutex_unlock(&lock);
-        return output;
-    }
 };
-
-string getSetAwayMessage(string username, SharedServerData * sharedData){
-    return sharedData->getUserData()->getUserDetail(username, "setAwayMsg");
-//    fstream myfile;
-//    string line, word, user;
-//    vector<string> row;
-//
-//    cout << "Opening csv file" << endl;
-//    myfile.open ("userInfo.csv", ios::in);
-//
-//    while(!myfile.eof()){
-//        row.clear();
-//        getline(myfile, line);
-//        //cout << line << endl;
-//        if (line.find(username) != std::string::npos) {
-//            std::cout << "GetAwayMessage found!" << '\n';
-//            cout << "line : "<<line << endl;
-//            line.erase(line.size() - 1);
-//            stringstream s(line);
-//            while (getline(s, word, ',')) {
-//                cout << "word: " << word << endl;
-//                row.push_back(word);
-//            }
-//
-//            if(row.size() == 3){
-//                // return setaway message
-//                myfile.close();
-//                cout << "Part: "<< row.at(2) << endl;
-//                return row.at(2);
-//            }
-//        }
-//    }
-//    myfile.close();
-//    return "";
-}
 
 class RPC
 {
@@ -512,10 +430,10 @@ public:
             // Looks in map of parameters to get the passed in password
             auto p = params.find("password");
             passedInPassword = p->second;
-            cout << "passed in password is: " << passedInPassword << endl;
+//            cout << "passed in password is: " << passedInPassword << endl;
             // Gets the stored password and decrypts it
             storedPassword = enc.decrypt(sData->getUserData()->getUserDetail(storedUsername, "password"));
-             cout << "The stored password is: " << storedPassword << endl;
+//             cout << "The stored password is: " << storedPassword << endl;
             // Case: Stored password matches the passed in password
             if (storedPassword == passedInPassword) {
                 //success
@@ -595,7 +513,7 @@ public:
             setAwayMessage = getSetAwayMessage(passedInUsername, sharedData);
 
             // if there isn't an away message
-            if (setAwayMessage.length() == 0){
+            if (setAwayMessage.length() == 0) {
                 cout << "User is available " << endl;
                 auto p = params.find("message");
                 message = p->second;
@@ -625,7 +543,11 @@ public:
         send(thread->getSocket(), output, 100, 0);
         // cout << "Sending message back to client toSocket" << toSocket << endl;
         // send(toSocket, output, strlen(output)+1, 0);
-    }
+    };
+
+    static string getSetAwayMessage(string username, SharedServerData * sharedData){
+        return sharedData->getUserData()->getUserDetail(username, "setAwayMsg");
+    };
 
     // Server side RPC to check online users
     static void checkOnlineUsersRPC(SharedServerData *sData, threadData *tData) {
@@ -647,7 +569,6 @@ public:
     static void setAwayMessageRPC(SharedServerData * sharedData, threadData * thread, unordered_map<string, string> params){
         //cout<<"Inside set away message!"<<endl;
         string message;
-        cout << message << endl;
 
         auto s = params.find("awayMessage");
         message = s->second;
@@ -805,23 +726,21 @@ public:
                 RPC::connectRPC(pSharedData, maps, &thread);
                 pSharedData->setClientSocketMapping(thread.getUsername(), sock);
                 // input.clear();
-                // Disconnect called
+            // Disconnect called
             } else if(input.whichRPC() == "disconnect") {
                 cout << "Disconnect called" << endl;
                 RPC::disconnectRPC(pSharedData, &thread);
                 input.clear();
                 pthread_exit(NULL);
-                // Send message called
-            }
-            else if(input.whichRPC() == "sendmessage") {
+            // Send message called
+            } else if(input.whichRPC() == "sendmessage") {
                 cout << "Send message called" << endl;
                 unordered_map<string, string> maps = input.restOfParameters();
                 // note: moved functionality to sendmessage
                 RPC::sendMessageRPC(pSharedData, maps, &thread);
                 input.clear();
-                // Set Away Message called
-            }
-            else if(input.whichRPC() == "setaway") {
+            // Set Away Message called
+            } else if(input.whichRPC() == "setaway") {
                 cout << "set away message called" << endl;
                 unordered_map<string, string> maps = input.restOfParameters();
 
@@ -831,18 +750,17 @@ public:
 
                 RPC::setAwayMessageRPC(pSharedData, &thread, maps);
                 input.clear();
-                // Check Online Users called
-            }
-            else if(input.whichRPC() == "checkonlineusers") {
+            // Check Online Users called
+            } else if(input.whichRPC() == "checkonlineusers") {
                 cout << "Check Online Users called" << endl;
                 RPC::checkOnlineUsersRPC(pSharedData, &thread);
                 input.clear();
-                // Unknown RPC called
+            // Return from Away called
             } else if(input.whichRPC() == "returnFromAway") {
                 cout << "User returning from away" << endl;
                 RPC::userReturningFromAway(pSharedData, &thread);
-            }
-            else {
+            // Unknown RPC called
+            } else {
                 char const *unknownRPC = "status=-1;error=unknownRPC";
                 send(sock, unknownRPC, strlen(unknownRPC)+1, 0);
                 input.clear();
