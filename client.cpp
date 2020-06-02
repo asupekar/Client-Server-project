@@ -359,13 +359,30 @@ string setAwayMessage(int & sock) {
     return buffer;
 }
 
+void returnFromAway(int & sock) {
+    char returnCall[256];
+    strcpy(returnCall,"rpc=returnFromAway;");
+//    cout << "Passing in: " << disconnectCall << endl;
+//    cout << "String length being passed in: " << strlen(disconnectCall) << endl;
+    send(sock, returnCall, strlen(returnCall)+1, 0);
+
+    size_t valRead;
+    char buffer[1024] = { 0 };
+    valRead = read(sock, buffer, 1024);
+    // Printing out the valRead and the buffer for validation purposes
+    printf("ValRead=%zu buffer=%s\n", valRead, buffer);
+//    int out = basicErrorHandling(buffer);
+}
+
 bool helpMessage() {
     cout << "--------------------" << endl;
     cout << "\nAvailable commands: " << endl;
     cout << "1. Chat" << endl;
-    cout << "2. Check Online Users (Check)" << endl;
-    cout << "3. Set Away Message (Away)" << endl;
-    cout << "4. Disconnect "<<endl;
+    cout << "2. Check Online Users" << endl;
+    cout << "3. Set Away Message" << endl;
+    cout << "4. Disconnect"<< endl;
+    cout << "5. Help message" << endl;
+    cout << "6. Return from away" << endl;
     cout << "Any other number. Just to be online and be a good listener" << endl;
     cout << "--------------------" << endl;
     return true;
@@ -415,34 +432,35 @@ static string parseMessage(string input) {
     return val;
 }
 
+// DECIDED UNNECESSARY -- WILL DELETE BEFORE TURN IN
 // after you get an unknown incoming message
 // decide whether or not to accept chat
 // delete or comment out if not using threads
-string acceptChat(GlobalContext * data, string fromUser) {
-    string acceptChat;
-    printf("Do you want to enter chat with %s? yes or no: ",fromUser.c_str());
-
-    getline(cin,acceptChat,'\n');
-    if (acceptChat.compare("yes") == 0) {
-        // if you're already in chat, tell them you're done
-        printf("Accepted!\n");
-        if (data->getChatMode()) {
-            printf("Ending chat with %s\n",data->getChatPartner().c_str());
-            sendMessage(data,false,"End Chat");
-        } else {
-            data->setChatMode(true);
-        }
-        // enter one-on-one mode
-        printf("Starting chat with %s\n",fromUser.c_str());
-        data->setChatPartner(fromUser);
-    } else {
-        //rejected
-        data->setChatPartner(fromUser);
-        sendMessage(data,false,"No Chat");
-        data->setChatPartner("");
-    }
-    return acceptChat;
-}
+//string acceptChat(GlobalContext * data, string fromUser) {
+//    string acceptChat;
+//    printf("Do you want to enter chat with %s? yes or no: ",fromUser.c_str());
+//
+//    getline(cin,acceptChat,'\n');
+//    if (acceptChat.compare("yes") == 0) {
+//        // if you're already in chat, tell them you're done
+//        printf("Accepted!\n");
+//        if (data->getChatMode()) {
+//            printf("Ending chat with %s\n",data->getChatPartner().c_str());
+//            sendMessage(data,false,"End Chat");
+//        } else {
+//            data->setChatMode(true);
+//        }
+//        // enter one-on-one mode
+//        printf("Starting chat with %s\n",fromUser.c_str());
+//        data->setChatPartner(fromUser);
+//    } else {
+//        //rejected
+//        data->setChatPartner(fromUser);
+//        sendMessage(data,false,"No Chat");
+//        data->setChatPartner("");
+//    }
+//    return acceptChat;
+//}
 
 
 // one-on-one chat
@@ -613,6 +631,10 @@ void sendLoop(GlobalContext * data) {
             break;
         } else if (userCommand == 5) {
             helpMessage();
+            cout << "what next? 5-help " << endl;
+            cin >> userCommand;
+        } else if (userCommand == 6) {
+            returnFromAway(sock);
             cout << "what next? 5-help " << endl;
             cin >> userCommand;
         } else {

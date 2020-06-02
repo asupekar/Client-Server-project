@@ -181,9 +181,6 @@ public:
 // User class to store user information
 class user {
 private:
-    // state?
-//    bool changed;
-    string preferredUsername;
     string password;
     string userStatus;
     string userMessage;
@@ -196,30 +193,30 @@ public:
     void initializeFields(const string& field, const string& val) {
         if(field == "password")
             password = val;
-        else if(field == "userMessage")
+        else if(field == "setAwayMsg")
             userMessage = val;
-        else if(field == "preferredUserName")
-            preferredUsername = val;
     }
     // Returns the value stored for this user under requested field
     string getField(const string& field) {
-        if(field == "password")
+        cout << "The field being passed in is: " << field << endl;
+        if(field == "password") {
             return password;
-        else if(field == "userMessage")
+        } else if(field == "setAwayMsg") {
+            cout << "The userMessage is: " << userMessage << endl;
             return userMessage;
-        else if(field == "preferredUserName")
-            return preferredUsername;
-        else if(field == "userStatus") {
-//            cout << "Right field, value = " << userStatus << endl;
+        } else if(field == "userStatus") {
             return userStatus;
-        } else
+        } else {
             return "Not valid field";
+        }
     }
 
     void setStatus(string& status) {
-//        cout << "setStatus method: " << status << endl;
         userStatus.assign(status);
-//        cout << "After assignment: " << userStatus << endl;
+    }
+
+    void setUserMessage(string& message) {
+        userMessage.assign(message);
     }
 };
 
@@ -233,25 +230,25 @@ public:
     readAndStoreUserData() {
         readFile();
     };
+
     // Read from CSV, parse and store in user object
     void readFile() {
         // The file of user info to be loaded from
         ifstream data("userInfo.csv");
         // Checks if file was opened successfully, if not, the program will fail
-        if (!data.is_open())
-        {
+        if (!data.is_open()) {
             exit(EXIT_FAILURE);
         }
         // Accesses and saves the header row for use
         string headerRef;
-        getline(data,headerRef);
+        getline(data, headerRef);
 
         // Temp storage for next row of data being accessed
         string str;
         string header;
 
         // Continues running while CSV file still has more rows
-        while(getline(data, str)) {
+        while (getline(data, str)) {
             header = headerRef;
             unordered_map<string, string> userDetails;
             user currUser = user();
@@ -277,11 +274,11 @@ public:
                 header.erase(0, headerPos + delimiter.length());
             }
             // End of header row cleanup
-            if(!header.empty() && (header.at(header.length() - 1) = '\r')) {
+            if (!header.empty() && (header.at(header.length() - 1) = '\r')) {
                 header.erase(header.length() - 1);
             }
             // End of current row cleanup
-            if(str.length() > 0 && (str.at(str.length() - 1) = '\r')) {
+            if (str.length() > 0 && (str.at(str.length() - 1) = '\r')) {
                 str.erase(str.length() - 1);
             }
 //            cout << "added a user" << endl;
@@ -289,33 +286,40 @@ public:
             currUser.initializeFields(header, str);
 //            cout << "added back to main map" << endl;
             // Adds keyVal pair to map
-            userDict.insert({username,currUser});
+            userDict.insert({username, currUser});
         }
         data.close();
 //        cout << "all data processed" << endl;
     };
 
     // Gets the desired user detail for a specific username
-    string getUserDetail(const string& un, const string& detail) {
+    string getUserDetail(const string &un, const string &detail) {
         string retrievedValue;
         user foundUser = findUser(un);
-        return foundUser.getField(detail);
-//        cout << "Retrieved value: " << retrievedValue;
-//        return retrievedValue;
+        retrievedValue = foundUser.getField(detail);
+        cout << "Retrieved value: " << retrievedValue << endl;
+        return retrievedValue;
     };
 
-    void setUserStatus(const string& un, string detail) {
+    void setUserStatus(const string &un, string detail) {
 //        cout << "setUserStatus method: " << detail << endl;
         user foundUser = findUser(un);
 //        cout << foundUser.getField("userStatus") << endl;
         foundUser.setStatus(detail);
         userDict.erase(un);
-        userDict.insert({un,foundUser});
+        userDict.insert({un, foundUser});
+    };
+
+    void setUserMessage(const string &un, string detail) {
+        user foundUser = findUser(un);
+        foundUser.setUserMessage(detail);
+        userDict.erase(un);
+        userDict.insert({un, foundUser});
     };
 
     // Finds the user object from the map based on provided username
-    user findUser(const string& un) {
-        unordered_map<string,user>::const_iterator outerMapIt = userDict.find(un);
+    user findUser(const string &un) {
+        unordered_map<string, user>::const_iterator outerMapIt = userDict.find(un);
         user foundUser = outerMapIt->second;
         return foundUser;
     };
@@ -323,20 +327,19 @@ public:
     // Checks if the username provided exists in the map
     string checkValidUsername(string un) {
         auto s = userDict.find(un);
-        if(s == userDict.end()) {
+        if (s == userDict.end()) {
             return "";
         } else {
             return un;
         }
-    }
+    };
 
     //Gets list of users with status set to Online
     string getOnlineUsers() {
         //iterate
         string output = "";
-        unordered_map<string,user>::iterator itr = userDict.begin();
-        while (itr != userDict.end())
-        {
+        unordered_map<string, user>::iterator itr = userDict.begin();
+        while (itr != userDict.end()) {
             //check user status
             string un = itr->first;
             user thisUser = itr->second;
@@ -348,44 +351,43 @@ public:
             itr++;
         }
         return output;
-    }
-
-    void parseAndUpdateCsv(string username, string message){
-        fstream myfile, fout;
-        string line, word, user;
-
-        cout << "Opening csv file" << endl;
-        myfile.open ("userInfo.csv", ios::in);
-        fout.open ("userInfo_tmp.csv", ios::out);
-
-        while(!myfile.eof()){
-            getline(myfile, line);
-            //cout << line << endl;
-            if (line.find(username) != std::string::npos) {
-                std::cout << "found!" << '\n';
-                if(line.at(line.length() - 1) == '\r') {
-                    line.erase(line.length()-1);
-                }
-                if(message.at(message.length() - 1) == '\r'){
-                    message.erase(message.length()-1);
-                }
-                fout << line << message << "," << endl;
-            }else{
-                fout << line << endl;
-            }
-        }
-
-        myfile.close();
-        fout.close();
-
-        // removing the existing file 
-        remove("userInfo.csv");
-
-        // renaming the updated file with the existing file name 
-        rename("userInfo_tmp.csv", "userInfo.csv");
-        readAndStoreUserData();
-    }
+    };
 };
+//    void parseAndUpdateCsv(string username, string message){
+//        fstream myfile, fout;
+//        string line, word, user;
+//
+//        cout << "Opening csv file" << endl;
+//        myfile.open ("userInfo.csv", ios::in);
+//        fout.open ("userInfo_tmp.csv", ios::out);
+//
+//        while(!myfile.eof()){
+//            getline(myfile, line);
+//            //cout << line << endl;
+//            if (line.find(username) != std::string::npos) {
+//                std::cout << "found!" << '\n';
+//                if(line.at(line.length() - 1) == '\r') {
+//                    line.erase(line.length()-1);
+//                }
+//                if(message.at(message.length() - 1) == '\r'){
+//                    message.erase(message.length()-1);
+//                }
+//                fout << line << message << "," << endl;
+//            }else{
+//                fout << line << endl;
+//            }
+//        }
+//
+//        myfile.close();
+//        fout.close();
+//
+//        // removing the existing file
+//        remove("userInfo.csv");
+//
+//        // renaming the updated file with the existing file name
+//        rename("userInfo_tmp.csv", "userInfo.csv");
+//        readAndStoreUserData();
+//    }
 
 // ServerContextData in example
 // Information that is shared to all threads
@@ -448,38 +450,39 @@ public:
     }
 };
 
-string getSetAwayMessage(string username){
-    fstream myfile;
-    string line, word, user;
-    vector<string> row;
-
-    cout << "Opening csv file" << endl;
-    myfile.open ("userInfo.csv", ios::in);
-
-    while(!myfile.eof()){
-        row.clear();
-        getline(myfile, line);
-        //cout << line << endl;
-        if (line.find(username) != std::string::npos) {
-            std::cout << "GetAwayMessage found!" << '\n';
-            cout << "line : "<<line << endl;
-            line.erase(line.size() - 1);
-            stringstream s(line);
-            while (getline(s, word, ',')) {
-                cout << "word: " << word << endl;
-                row.push_back(word);
-            }
-
-            if(row.size() == 3){
-                // return setaway message
-                myfile.close();
-                cout << "Part: "<< row.at(2) << endl;
-                return row.at(2);
-            }
-        }
-    }
-    myfile.close();
-    return "";
+string getSetAwayMessage(string username, SharedServerData * sharedData){
+    return sharedData->getUserData()->getUserDetail(username, "setAwayMsg");
+//    fstream myfile;
+//    string line, word, user;
+//    vector<string> row;
+//
+//    cout << "Opening csv file" << endl;
+//    myfile.open ("userInfo.csv", ios::in);
+//
+//    while(!myfile.eof()){
+//        row.clear();
+//        getline(myfile, line);
+//        //cout << line << endl;
+//        if (line.find(username) != std::string::npos) {
+//            std::cout << "GetAwayMessage found!" << '\n';
+//            cout << "line : "<<line << endl;
+//            line.erase(line.size() - 1);
+//            stringstream s(line);
+//            while (getline(s, word, ',')) {
+//                cout << "word: " << word << endl;
+//                row.push_back(word);
+//            }
+//
+//            if(row.size() == 3){
+//                // return setaway message
+//                myfile.close();
+//                cout << "Part: "<< row.at(2) << endl;
+//                return row.at(2);
+//            }
+//        }
+//    }
+//    myfile.close();
+//    return "";
 }
 
 class RPC
@@ -509,9 +512,10 @@ public:
             // Looks in map of parameters to get the passed in password
             auto p = params.find("password");
             passedInPassword = p->second;
+            cout << "passed in password is: " << passedInPassword << endl;
             // Gets the stored password and decrypts it
             storedPassword = enc.decrypt(sData->getUserData()->getUserDetail(storedUsername, "password"));
-            // cout << storedPassword << endl;
+             cout << "The stored password is: " << storedPassword << endl;
             // Case: Stored password matches the passed in password
             if (storedPassword == passedInPassword) {
                 //success
@@ -588,7 +592,7 @@ public:
             // Case: Passed in username exists and user is online
         } else {
             // Check away message is set for passedInUsername
-            setAwayMessage = getSetAwayMessage(passedInUsername);
+            setAwayMessage = getSetAwayMessage(passedInUsername, sharedData);
 
             // if there isn't an away message
             if (setAwayMessage.length() == 0){
@@ -648,9 +652,18 @@ public:
         auto s = params.find("awayMessage");
         message = s->second;
         cout << "AwayMessage: " << message << endl;
-        sharedData->getUserData()->parseAndUpdateCsv(thread->getUsername(), message);
+        sharedData->getUserData()->setUserMessage(thread->getUsername(), message);
+//        sharedData->getUserData()->parseAndUpdateCsv(thread->getUsername(), message);
         string success = "SetAwayMessage was set successfully";
         send(thread->getSocket(), success.c_str(), success.length()+1, 0);
+    }
+
+    // Server side RPC to check online users
+    static void userReturningFromAway(SharedServerData *sData, threadData *tData) {
+//        sData->getUserData()->parseAndUpdateCsv(tData->getUsername(), "");
+        sData->getUserData()->setUserMessage(tData->getUsername(), "");
+        string success = "SetAwayMessage was set successfully";
+        send(tData->getSocket(), success.c_str(), success.length()+1, 0);
     }
 };
 
@@ -825,6 +838,9 @@ public:
                 RPC::checkOnlineUsersRPC(pSharedData, &thread);
                 input.clear();
                 // Unknown RPC called
+            } else if(input.whichRPC() == "returnFromAway") {
+                cout << "User returning from away" << endl;
+                RPC::userReturningFromAway(pSharedData, &thread);
             }
             else {
                 char const *unknownRPC = "status=-1;error=unknownRPC";
