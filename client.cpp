@@ -376,14 +376,14 @@ void returnFromAway(int & sock) {
 
 bool helpMessage() {
     cout << "--------------------" << endl;
-    cout << "\nAvailable commands: " << endl;
+    cout << "Available commands: " << endl;
     cout << "1. Chat" << endl;
     cout << "2. Check Online Users" << endl;
     cout << "3. Set Away Message" << endl;
     cout << "4. Disconnect"<< endl;
     cout << "5. Help message" << endl;
     cout << "6. Return from away" << endl;
-    cout << "Any other number. Just to be online and be a good listener" << endl;
+//    cout << "Any other number. Just to be online and be a good listener" << endl;
     cout << "--------------------" << endl;
     return true;
 }
@@ -607,7 +607,7 @@ void sendLoop(GlobalContext * data) {
             data->setChatPartner("");
             data->setChatMode(false);
             cout << "ended" << endl;
-            cout << "what next? 5-help " << endl;
+            cout << "What would you like to do? 5 -- help " << endl;
             cin >> userCommand;
             /*int ret = sendMessage(data, true);
             if(ret == -1 || ret == -2) {
@@ -617,11 +617,11 @@ void sendLoop(GlobalContext * data) {
             }*/
         } else if (userCommand == 2) {
             checkOnlineUsers(sock);
-            cout << "what next? 5-help " << endl;
+            cout << "What would you like to do? 5 -- help " << endl;
             cin >> userCommand;
         } else if(userCommand == 3){
             setAwayMessage(sock);
-            cout << "what next? 5-help " << endl;
+            cout << "What would you like to do? 5 -- help " << endl;
             cin >> userCommand;
         } else if(userCommand == 4){
             data->setConnect(false);
@@ -631,27 +631,30 @@ void sendLoop(GlobalContext * data) {
             break;
         } else if (userCommand == 5) {
             helpMessage();
-            cout << "what next? 5-help " << endl;
+            cout << "What would you like to do? " << endl;
             cin >> userCommand;
         } else if (userCommand == 6) {
             returnFromAway(sock);
-            cout << "what next? 5-help " << endl;
+            cout << "What would you like to do? 5 -- help " << endl;
             cin >> userCommand;
         } else {
-            char buffer[1024] = {0};
-            while(read(sock, buffer, 1024)){
-                string fromUser = parseFromUser(buffer);
-                string message = parseMessage(buffer);
-                if(message.length() > 0 && (message.compare("SetAway")!=0)){
-                    printf("%s: %s\n", fromUser.c_str(), message.c_str());
-                    sendMessage(data, true);
-                    userCommand = 6;
-                }else{
-                    cout << "Disconnecting since away..."<< endl;
-                    userCommand = 4;
-                }
-                break;
-            }
+            cout << "Please enter a valid selection!" << endl;
+            cout << "What would you like to do? " << endl;
+            cin >> userCommand;
+//            char buffer[1024] = {0};
+//            while(read(sock, buffer, 1024)){
+//                string fromUser = parseFromUser(buffer);
+//                string message = parseMessage(buffer);
+//                if(message.length() > 0 && (message.compare("SetAway")!=0)){
+//                    printf("%s: %s\n", fromUser.c_str(), message.c_str());
+//                    sendMessage(data, true);
+//                    userCommand = 6;
+//                }else{
+//                    cout << "Disconnecting since away..."<< endl;
+//                    userCommand = 4;
+//                }
+//                break;
+//            }
         }
     }
 
@@ -735,7 +738,7 @@ int main(int argc, char const *argv[])
 //    usleep(10000000);
 
     int userCommand;
-    cout << "what next? 5-help " << endl;
+    cout << "What would you like to do? 5 -- help " << endl;
     cin >> userCommand;
     while (true) {
         if (userCommand == 1) {
@@ -756,7 +759,7 @@ int main(int argc, char const *argv[])
             break;
         } else if(userCommand == 5) {
             helpMessage();
-            cout << "what next? 5-help " << endl;
+            cout << "What would you like to do? 5 -- help " << endl;
             cin >> userCommand;
         } else {
             char buffer[1024] = {0};
