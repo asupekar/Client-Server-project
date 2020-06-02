@@ -9,6 +9,7 @@
 #include <vector>
 #include <poll.h>
 #include <stdio.h>
+#include <limits>
 
 // This port and host will automatically be passed in if client is called without arguments
 #define PORT "12126"
@@ -685,6 +686,10 @@ void sendLoop(GlobalContext * data) {
             disconnectRPC(sock);
             break;
         } else {
+            if(!cin) {
+                cin.clear();
+                cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+            }
             cout << "Please enter a valid selection!" << endl;
             cout << "What would you like to do? " << endl;
             cin >> userCommand;
