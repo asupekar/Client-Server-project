@@ -30,13 +30,13 @@ public:
 
     // necessary socket info for threading
     void setSocket(int s)
-	{
-		this->socket = s;
-	}
+    {
+        this->socket = s;
+    }
     int getSocket()
-	{
-		return socket;
-	}
+    {
+        return socket;
+    }
 };
 
 // Class to encrypt and decrypt the password
@@ -358,8 +358,8 @@ public:
         myfile.open ("userInfo.csv", ios::in);
         fout.open ("userInfo_tmp.csv", ios::out);
 
-        while(!myfile.eof()){ 
-            getline(myfile, line); 
+        while(!myfile.eof()){
+            getline(myfile, line);
             //cout << line << endl;
             if (line.find(username) != std::string::npos) {
                 std::cout << "found!" << '\n';
@@ -375,14 +375,14 @@ public:
             }
         }
 
-        myfile.close(); 
+        myfile.close();
         fout.close();
 
         // removing the existing file 
-        remove("userInfo.csv"); 
-    
+        remove("userInfo.csv");
+
         // renaming the updated file with the existing file name 
-        rename("userInfo_tmp.csv", "userInfo.csv"); 
+        rename("userInfo_tmp.csv", "userInfo.csv");
         readAndStoreUserData();
     }
 };
@@ -392,13 +392,13 @@ public:
 class SharedServerData {
 private:
     pthread_mutex_t lock;
-   // pthread_cond_t fill;
+    // pthread_cond_t fill;
     int lastSocket;
     unordered_map<string, int> clientSocketMapping;
     readAndStoreUserData userDataStore;
-    
+
 public:
-    SharedServerData() 
+    SharedServerData()
     {
         userDataStore = readAndStoreUserData();
     }
@@ -406,9 +406,9 @@ public:
     // tracking current thread socket in threadData
     // this is for new thread creation
     void setSocket(int s)
-	{
-		this->lastSocket = s;
-	}
+    {
+        this->lastSocket = s;
+    }
 
     int getSocket()
     {
@@ -416,9 +416,9 @@ public:
     }
 
     void setClientSocketMapping(string username, int socket){
-        pthread_mutex_lock(&lock); 
+        pthread_mutex_lock(&lock);
         clientSocketMapping[username] = socket;
-        pthread_mutex_unlock(&lock); 
+        pthread_mutex_unlock(&lock);
     }
 
     int getSocketMappingForClient(string username){
@@ -434,7 +434,7 @@ public:
 
     string getClients() {
         //iterate
-        pthread_mutex_lock(&lock); 
+        pthread_mutex_lock(&lock);
         string output = "";
         unordered_map<string,int>::iterator itr = clientSocketMapping.begin();
         while (itr != clientSocketMapping.end())
@@ -443,7 +443,7 @@ public:
             output.append(",");
             itr++;
         }
-        pthread_mutex_unlock(&lock); 
+        pthread_mutex_unlock(&lock);
         return output;
     }
 };
@@ -451,42 +451,42 @@ public:
 string getSetAwayMessage(string username){
     fstream myfile;
     string line, word, user;
-    vector<string> row; 
+    vector<string> row;
 
     cout << "Opening csv file" << endl;
     myfile.open ("userInfo.csv", ios::in);
 
-    while(!myfile.eof()){ 
+    while(!myfile.eof()){
         row.clear();
-        getline(myfile, line); 
+        getline(myfile, line);
         //cout << line << endl;
         if (line.find(username) != std::string::npos) {
             std::cout << "GetAwayMessage found!" << '\n';
             cout << "line : "<<line << endl;
             line.erase(line.size() - 1);
-            stringstream s(line); 
-            while (getline(s, word, ',')) { 
+            stringstream s(line);
+            while (getline(s, word, ',')) {
                 cout << "word: " << word << endl;
-                row.push_back(word); 
+                row.push_back(word);
             }
-            
-            if(row.size() == 3){ 
+
+            if(row.size() == 3){
                 // return setaway message
-                myfile.close(); 
+                myfile.close();
                 cout << "Part: "<< row.at(2) << endl;
                 return row.at(2);
             }
         }
     }
-    myfile.close(); 
+    myfile.close();
     return "";
 }
 
-class RPC 
+class RPC
 {
 public:
     // Server side connect RPC
-    static void connectRPC(SharedServerData *sData, unordered_map<string, string> params, threadData* thread) {        
+    static void connectRPC(SharedServerData *sData, unordered_map<string, string> params, threadData* thread) {
         // prepare return
         char output[30];
         // Creation of encryption object
@@ -502,7 +502,7 @@ public:
         if (storedUsername != passedInUsername) {
             cout << "Bad Username passed in" << endl;
             strcpy(output, strcpy(output, "status=-1;error=BadUsername;"));
-        // Case: Passed in username exists
+            // Case: Passed in username exists
         }
         else {
             // Checking password
@@ -521,7 +521,7 @@ public:
                 // cout << nextValue << endl;
                 thread->setUsername(passedInUsername);
                 strcpy(output, "status=1;error=Success;");
-            // Case: Stored password does not match the passed in password
+                // Case: Stored password does not match the passed in password
             } else {
                 //error
                 cout << "User found, but password was incorrect" << endl;
@@ -536,7 +536,7 @@ public:
     static void disconnectRPC(SharedServerData *sData, threadData *thread) {
         // set user status as offline
         sData->getUserData()->setUserStatus(thread->getUsername(), "Offline");
-        char const *disconnect = "status=0;error=disconnected";
+        char const *disconnect = "status=1;error=disconnected";
         send(thread->getSocket(), disconnect, strlen(disconnect)+1, 0);
     }
 
@@ -551,7 +551,7 @@ public:
         strcat(output,"; ");
         send(toSocket, output, (sizeof(output)/sizeof(output[0])) + 1, 0);
     }
-    
+
     // Server side sendmessage RPC
     static void sendMessageRPC(SharedServerData * sharedData, unordered_map<string, string> params, threadData *thread) {
         // prepare return
@@ -580,12 +580,12 @@ public:
             cout << "Bad Username passed in" << endl;
             strcpy(output, strcpy(output, "status=-1;error=BadUsername;"));
 
-        // Case: user is not online
+            // Case: user is not online
         } else if (toSocket == -1) {
             cout << passedInUsername << " is offline at this moment. Please try again later!!!" << endl;
             strcpy(output, "status=-1;error=NotOnline");
 
-        // Case: Passed in username exists and user is online
+            // Case: Passed in username exists and user is online
         } else {
             // Check away message is set for passedInUsername
             setAwayMessage = getSetAwayMessage(passedInUsername);
@@ -603,7 +603,7 @@ public:
                 // Sends message back to client
                 strcpy(output, "status=1;error=Success");
 
-            // if there is an away message
+                // if there is an away message
             } else {
                 cout << "User not available " << endl;
                 cout << "SetAwayMessage: " << setAwayMessage << endl;
@@ -622,7 +622,7 @@ public:
         // cout << "Sending message back to client toSocket" << toSocket << endl;
         // send(toSocket, output, strlen(output)+1, 0);
     }
-        
+
     // Server side RPC to check online users
     static void checkOnlineUsersRPC(SharedServerData *sData, threadData *tData) {
         string clientList = sData->getUserData()->getOnlineUsers();
@@ -635,7 +635,7 @@ public:
             strcpy(output, "Status=1,OnlineUsers=");
             strcat(output, clientList.c_str());
         }
-        
+
         send(tData->getSocket(), output, clientList.size() + 30, 0);
         delete [] output;
     }
@@ -658,91 +658,91 @@ public:
 // Server class to store server functionality
 class Server {
 private:
-	int server_fd;
-	struct sockaddr_in address;
-	int addrlen = sizeof(address);
-	int port;
+    int server_fd;
+    struct sockaddr_in address;
+    int addrlen = sizeof(address);
+    int port;
     int maxConn;
     SharedServerData *sharedData;
 
 public:
 
     // Constructors
-	Server(int nPort)
-	{
-		port = nPort;
+    Server(int nPort)
+    {
+        port = nPort;
         //arbitrary value for max connections
         maxConn = 5;
-	}
+    }
 
-	~Server()
-	{
+    ~Server()
+    {
 
-	}
+    }
 
     // Function: start server functionality
-	int startServer()
-	{
+    int startServer()
+    {
         bindSocket(port);
         cout << "binded" << endl;
         sharedData = new SharedServerData();
-		return 0;
-	}
+        return 0;
+    }
 
     // Function: Bind server to port and start listening
     int bindSocket(int port) {
         int opt = 1;
 
-		// Creating socket file descriptor 
-		if ((server_fd = socket(AF_INET, SOCK_STREAM, 0)) == 0)
-		{
-			perror("socket failed");
-			exit(EXIT_FAILURE);
-		}
+        // Creating socket file descriptor
+        if ((server_fd = socket(AF_INET, SOCK_STREAM, 0)) == 0)
+        {
+            perror("socket failed");
+            exit(EXIT_FAILURE);
+        }
 
-		// Forcefully attaching socket to the port 8080 
-		if (setsockopt(server_fd, SOL_SOCKET, SO_REUSEADDR,
-			&opt, sizeof(opt)))
-		{
-			perror("setsockopt");
-			exit(EXIT_FAILURE);
-		}
-		address.sin_family = AF_INET;	
-   	    address.sin_addr.s_addr = INADDR_ANY;
-		address.sin_port = (uint16_t) htons((uint16_t) port);
+        // Forcefully attaching socket to the port 8080
+        if (setsockopt(server_fd, SOL_SOCKET, SO_REUSEADDR,
+                       &opt, sizeof(opt)))
+        {
+            perror("setsockopt");
+            exit(EXIT_FAILURE);
+        }
+        address.sin_family = AF_INET;
+        address.sin_addr.s_addr = INADDR_ANY;
+        address.sin_port = (uint16_t) htons((uint16_t) port);
 
-		if (::bind(server_fd, (struct sockaddr *)&address, sizeof(address)) < 0)
-		{
-			perror("bind failed");
-			exit(EXIT_FAILURE);
-		}
-		if (listen(server_fd, maxConn) < 0)
-		{
-			perror("listen");
-			exit(EXIT_FAILURE);
-		}
+        if (::bind(server_fd, (struct sockaddr *)&address, sizeof(address)) < 0)
+        {
+            perror("bind failed");
+            exit(EXIT_FAILURE);
+        }
+        if (listen(server_fd, maxConn) < 0)
+        {
+            perror("listen");
+            exit(EXIT_FAILURE);
+        }
         return 0;
     }
 
-	// Function: new client connection
-	int acceptNewConnection()
-	{
-		int new_socket;
+    // Function: new client connection
+    int acceptNewConnection()
+    {
+        int new_socket;
 
-		if ((new_socket = accept(server_fd, (struct sockaddr *)&address,
-			(socklen_t*)&addrlen)) < 0)
-		{
-			perror("accept");
-			return (-1);
-		}
-		return new_socket;
-	}
+        if ((new_socket = accept(server_fd, (struct sockaddr *)&address,
+                                 (socklen_t*)&addrlen)) < 0)
+        {
+            perror("accept");
+            return (-1);
+        }
+        return new_socket;
+    }
 
     // Function: copied, expecting additional functionality
-	int closeServer()
-	{
-		return 0;
-	}
+    int closeServer()
+    {
+        return 0;
+    }
 
     // Function: listens and controls threads
     int threadLoop() {
@@ -750,7 +750,7 @@ public:
         int i = 0;
         // create thread array
         pthread_t *threads = new pthread_t[maxConn];
-        
+
         while (true) {
             // accept a new request
             int newConn = acceptNewConnection();
@@ -758,14 +758,14 @@ public:
             pthread_create(&threads[i], NULL, rpcThread, (void *) sharedData);
             i = (i+1) % maxConn;
         }
-        
+
         delete [] threads;
     }
 
     // Function to manage a thread
     // must be static
     // must accept void* args
-   static void *rpcThread(void *arg)
+    static void *rpcThread(void *arg)
     {
         int valread;
         char buffer[1024] = { 0 };
@@ -792,13 +792,13 @@ public:
                 RPC::connectRPC(pSharedData, maps, &thread);
                 pSharedData->setClientSocketMapping(thread.getUsername(), sock);
                 // input.clear();
-            // Disconnect called
+                // Disconnect called
             } else if(input.whichRPC() == "disconnect") {
                 cout << "Disconnect called" << endl;
                 RPC::disconnectRPC(pSharedData, &thread);
                 input.clear();
                 pthread_exit(NULL);
-            // Send message called
+                // Send message called
             }
             else if(input.whichRPC() == "sendmessage") {
                 cout << "Send message called" << endl;
@@ -806,25 +806,25 @@ public:
                 // note: moved functionality to sendmessage
                 RPC::sendMessageRPC(pSharedData, maps, &thread);
                 input.clear();
-            // Set Away Message called
-            } 
+                // Set Away Message called
+            }
             else if(input.whichRPC() == "setaway") {
                 cout << "set away message called" << endl;
                 unordered_map<string, string> maps = input.restOfParameters();
-                
+
                 for (auto const& pair: maps) {
-		            std::cout << "{" << pair.first << ": " << pair.second << "}\n";
-	            }
-                
+                    std::cout << "{" << pair.first << ": " << pair.second << "}\n";
+                }
+
                 RPC::setAwayMessageRPC(pSharedData, &thread, maps);
                 input.clear();
-            // Check Online Users called
-            } 
+                // Check Online Users called
+            }
             else if(input.whichRPC() == "checkonlineusers") {
                 cout << "Check Online Users called" << endl;
                 RPC::checkOnlineUsersRPC(pSharedData, &thread);
                 input.clear();
-            // Unknown RPC called
+                // Unknown RPC called
             }
             else {
                 char const *unknownRPC = "status=-1;error=unknownRPC";

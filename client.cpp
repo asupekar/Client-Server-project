@@ -36,12 +36,12 @@ public:
         this->connected = connected;
     }
 
-    void setUser(string username) 
+    void setUser(string username)
     {
         this->username = username;
     }
 
-    void setSocket(int socket) 
+    void setSocket(int socket)
     {
         this->socket = socket;
     }
@@ -67,9 +67,9 @@ public:
     }
 
     int getSocket()
-	{
-		return socket;
-	}
+    {
+        return socket;
+    }
 
     string getChatPartner() {
         return chatPartner;
@@ -211,12 +211,12 @@ string connectRPC(int & sock, string & username, string & password)
 
 // Client side send message RPC
 // changed inputs to take in thread info
-int sendMessage(GlobalContext * clientData, bool prompt, string message="") {
+int sendMessage(GlobalContext * clientData, bool prompt, string message="", string msgFromUser="") {
     //read globalcontextdata
     int sock = clientData->getSocket();
     string fromUser = clientData->getUser();
 
-     // start buffer
+    // start buffer
     string toUser;
     int buffersize = 1024;
     char sendBuffer[buffersize];
@@ -245,13 +245,13 @@ int sendMessage(GlobalContext * clientData, bool prompt, string message="") {
         getline(cin, message, '\n');
         strcat(sendBuffer, message.c_str());
     } else {
-        toUser = clientData->getChatPartner();
-        strcat(sendBuffer, toUser.c_str());
+//        toUser = clientData->getChatPartner();
+        strcat(sendBuffer, msgFromUser.c_str());
         strcat(sendBuffer, ";fromUser=");
         strcat(sendBuffer, fromUser.c_str());
         strcat(sendBuffer, ";message=");
         strcat(sendBuffer, message.c_str());
-    } 
+    }
 
     //end the line
     char temp[2] = {';'};
@@ -277,7 +277,7 @@ int sendMessage(GlobalContext * clientData, bool prompt, string message="") {
         }
 
         return out;
-    } 
+    }
     return 0;
 
     // Check if it sent correctly
@@ -337,7 +337,8 @@ string setAwayMessage(int & sock) {
     string awayMessage;
 
     cout << "What away message would you like to set? ";
-    cin >> awayMessage;
+    cin.ignore();
+    getline(cin, awayMessage, '\n');
 
     strcpy(authStr, "rpc=setaway;awayMessage=");
     strcat(authStr, awayMessage.c_str());
@@ -371,48 +372,48 @@ bool helpMessage() {
 }
 
 // Initial parse of the RPC call. Parses by ; to separate out all of the arguments
-    // End result will be a vector of format: [rpc, rpcType, parameter1, parameter1value, etc...]
-    static string parseFromUser(string input) {
-        //cout << "parseFromuser:: " << input << endl;
-        vector<string> vec;
-        string::size_type pos;
-        string val;
-        while((pos = input.find_first_of(';')) != string::npos){
-            string str = input.substr(0, pos);
-            vec.push_back(str);
-            input.erase(0, pos+1);
-        }
-
-        string s = vec.front();
-        while((pos = s.find_first_of('=')) != string::npos){
-            string key = s.substr(0, pos);
-            s.erase(0, pos+1);
-            val = s.substr(0, s.length());
-        }
-        
-        return val;
+// End result will be a vector of format: [rpc, rpcType, parameter1, parameter1value, etc...]
+static string parseFromUser(string input) {
+    //cout << "parseFromuser:: " << input << endl;
+    vector<string> vec;
+    string::size_type pos;
+    string val;
+    while((pos = input.find_first_of(';')) != string::npos){
+        string str = input.substr(0, pos);
+        vec.push_back(str);
+        input.erase(0, pos+1);
     }
 
-    static string parseMessage(string input) {
-        // cout << "parseFromMessage:: " << input << endl;
-        vector<string> vec;
-        string::size_type pos;
-        string val;
-        while((pos = input.find_first_of(';')) != string::npos){
-            string str = input.substr(0, pos);
-            vec.push_back(str);
-            input.erase(0, pos+1);
-        }
-
-        string s = vec.back();
-        while((pos = s.find_first_of('=')) != string::npos){
-            string key = s.substr(0, pos);
-            s.erase(0, pos+1);
-            val = s.substr(0, s.length());
-        }
-        
-        return val;
+    string s = vec.front();
+    while((pos = s.find_first_of('=')) != string::npos){
+        string key = s.substr(0, pos);
+        s.erase(0, pos+1);
+        val = s.substr(0, s.length());
     }
+
+    return val;
+}
+
+static string parseMessage(string input) {
+    // cout << "parseFromMessage:: " << input << endl;
+    vector<string> vec;
+    string::size_type pos;
+    string val;
+    while((pos = input.find_first_of(';')) != string::npos){
+        string str = input.substr(0, pos);
+        vec.push_back(str);
+        input.erase(0, pos+1);
+    }
+
+    string s = vec.back();
+    while((pos = s.find_first_of('=')) != string::npos){
+        string key = s.substr(0, pos);
+        s.erase(0, pos+1);
+        val = s.substr(0, s.length());
+    }
+
+    return val;
+}
 
 // after you get an unknown incoming message
 // decide whether or not to accept chat
@@ -420,13 +421,14 @@ bool helpMessage() {
 string acceptChat(GlobalContext * data, string fromUser) {
     string acceptChat;
     printf("Do you want to enter chat with %s? yes or no: ",fromUser.c_str());
+
     getline(cin,acceptChat,'\n');
     if (acceptChat.compare("yes") == 0) {
         // if you're already in chat, tell them you're done
         printf("Accepted!\n");
         if (data->getChatMode()) {
-            printf("Ending chat with %s\n",data->getChatPartner());
-            sendMessage(data,false,"End Chat");                  
+            printf("Ending chat with %s\n",data->getChatPartner().c_str());
+            sendMessage(data,false,"End Chat");
         } else {
             data->setChatMode(true);
         }
@@ -453,16 +455,16 @@ static void * chatThread(void * input) {
             string message;
             cout << ">>";
             getline(cin, message, '\n');
-            sendMessage(data, false, message);
+            sendMessage(data, false, message, data->getChatPartner());
             if (message.compare("End Chat") == 0) {
                 cout << "Chat ending" << endl;
-                //data->setChatMode(false);
+                data->setChatMode(false);
                 //data->setChatPartner("");
-                 return NULL;
+                pthread_exit(NULL);
             }
             usleep(100000);
         } else {
-            return NULL;
+            pthread_exit(NULL);
         }
     }
     return NULL;
@@ -479,16 +481,16 @@ static void * readThread(void * input) {
     while (true) {
         // validate we're still connected
         //if (data->getChatMode()) {
-        if (data->getConnect()) {
+        if (data->getChatMode()) {
             //yes, connected
 
             //lock the socket while reading
-            pthread_mutex_lock(data->getLock()); 
+            pthread_mutex_lock(data->getLock());
 
             // poll the socket
             struct pollfd fd;
             int pollResult;
-            fd.fd = data->getSocket(); // your socket handler 
+            fd.fd = data->getSocket(); // your socket handler
             fd.events = POLLIN;
             pollResult = poll(&fd, 1, 500); // .5 second for timeout
 
@@ -509,24 +511,24 @@ static void * readThread(void * input) {
                 // first check if it's from the current partner
                 if (data->getChatPartner().compare(fromUser) != 0) {
                     // it's not the current partner, so prompt
-                    string accept = acceptChat(data, fromUser);
+                    sendMessage(data,false,"I'm busy",fromUser);
                 }
 
                 // if the message was to leave chat, then exit
                 if (message.compare("End Chat") ==  0) {
                     cout << "Leaving one-on-one chat with " << fromUser << endl;
                     //data->setChatPartner("");
-                    //data->setChatMode(false);
-                    return NULL;
+                    data->setChatMode(false);
+                    pthread_exit(NULL);
                     //pthread_cancel(chatLoop);
                     //pthread_join(chatLoop, NULL);
                     //pthread_create(&sendLoop, NULL, sendThread, (void *) data);
-                // if your request was rejected
-                } else if (message.compare("No Chat") == 0) {
+                    // if your request was rejected
+                } else if (message.compare("I'm busy") == 0) {
                     cout << fromUser << " did not accept your chat" << endl;
                     //data->setChatPartner("");
-                    //data->setChatMode(false);
-                    return NULL;
+                    data->setChatMode(false);
+                    pthread_exit(NULL);
                     //pthread_cancel(chatLoop);
                     //pthread_join(chatLoop, NULL);
                     //pthread_create(&sendLoop, NULL, sendThread, (void *) data);
@@ -534,15 +536,16 @@ static void * readThread(void * input) {
             }
 
             // done reading, release
-            pthread_mutex_unlock(data->getLock()); 
+            pthread_mutex_unlock(data->getLock());
         } else {
             // client chose to disconnect, stop reading
+            pthread_exit(NULL);
             break;
         }
         // allow a wait for commands
         //cout << "pause" << endl;
         usleep(500000);
-    }   
+    }
     return 0;
 }
 
@@ -586,6 +589,8 @@ void sendLoop(GlobalContext * data) {
             data->setChatPartner("");
             data->setChatMode(false);
             cout << "ended" << endl;
+            cout << "what next? 5-help " << endl;
+            cin >> userCommand;
             /*int ret = sendMessage(data, true);
             if(ret == -1 || ret == -2) {
                 userCommand = 4;
@@ -601,10 +606,10 @@ void sendLoop(GlobalContext * data) {
             cout << "what next? 5-help " << endl;
             cin >> userCommand;
         } else if(userCommand == 4){
-            data->setConnect(false); 
+            data->setConnect(false);
             //wait to give time for the readthread to close
             usleep(500500);
-            disconnectRPC(sock); 
+            disconnectRPC(sock);
             break;
         } else if (userCommand == 5) {
             helpMessage();
@@ -624,7 +629,7 @@ void sendLoop(GlobalContext * data) {
                     userCommand = 4;
                 }
                 break;
-            }   
+            }
         }
     }
 
@@ -667,11 +672,11 @@ int main(int argc, char const *argv[])
             cout << "The error was a " << parsedResponse[3] << endl;
         }
     } while(!connected);
-    
+
     // populate the fields
     data->setConnect(connected);
     data->setUser(username);
-    
+
     // run the authenticated client
     sendLoop(data);
     return 0;
@@ -706,7 +711,7 @@ int main(int argc, char const *argv[])
 //    cout << "Waiting for 10 seconds....." << endl;
     // Wait 10 seconds and then disconnect
 //    usleep(10000000);
-    
+
     int userCommand;
     cout << "what next? 5-help " << endl;
     cin >> userCommand;
@@ -731,7 +736,6 @@ int main(int argc, char const *argv[])
             helpMessage();
             cout << "what next? 5-help " << endl;
             cin >> userCommand;
-
         } else {
             char buffer[1024] = {0};
             while(read(sock, buffer, 1024)){
