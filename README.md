@@ -3,10 +3,10 @@ Final group project for CPSC 5042, Spring Quarter
 
 Assumptions:
 <ol>
-    <li>SendMessageRPC can only send and receive messages between two clients.
+    <li>When users begin chatting, they must set a primary chat partner. 
         <ol>
-            <li>If Client A is chatting with Client B and Client C messages Client B, Client C will automatically receive a "I'm busy" chat in response.</li>
-            <li>Chatting must occur sequentially. i.e. Client A sends a message and then Client B sends a message and so on. No client can send 2 messages in a row.</li>
+            <li>Unless noted otherwise, messages are delivered to the chat partner.</li>
+            <li>If Client A is chatting with Client B and Client C messages Client B, Client C will automatically receive a response that Client B is alredy in chat and may not respond.</li>
         </ol>
     </li>
     <li>When Client A wants to send message to Client B and Client B is offline, Client A should receive message - "Client B is offline at this moment. Please try again later."</li>
@@ -17,7 +17,7 @@ Assumptions:
             <li>When other Client B tries sending message to Client A, it should see SetAwayMessage irrespective of whether Client A is online or not
         </ol>
     </li>
-    <li>In order to end a chat and chat with someone else, one of the users must send the message "End Chat" to end the chat.</li>
+    <li>In order to end a chat or change chat partner, one of the users must use the /endchat command to end the chat.</li>
     <li>If the server is exited, the user away messages are not stored. All users are online when they log in initially.</li>
     <li>There are only credentials for 4 users available, but more can be added to the userInfo.csv if desired. For simplicity please copy the same password as the other "accounts" as there is backend password decryption happening.</li>
 </ol>
@@ -31,8 +31,6 @@ To compile the server and client
 g++ -std=c++11 client.cpp -o -lpthread client.o [On Mac machine]
 g++ -Wall -Werror -pedantic -std=c++11 -o client.o -lpthread client.cpp
 g++ -o client.o -lpthread client.cpp [On cs1 terminal]
-
-./client.o 127.0.0.1 12123
 
 g++ -Wall -Werror -pedantic -std=c++11 -o server.o -lpthread server.cpp [On Mac machine]
 
