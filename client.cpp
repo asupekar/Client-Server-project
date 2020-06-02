@@ -380,9 +380,9 @@ bool helpMessage() {
     cout << "1. Chat" << endl;
     cout << "2. Check Online Users" << endl;
     cout << "3. Set Away Message" << endl;
-    cout << "4. Disconnect"<< endl;
+    cout << "4. Return from away"<< endl;
     cout << "5. Help message" << endl;
-    cout << "6. Return from away" << endl;
+    cout << "6. Disconnect" << endl;
 //    cout << "Any other number. Just to be online and be a good listener" << endl;
     cout << "--------------------" << endl;
     return true;
@@ -624,20 +624,20 @@ void sendLoop(GlobalContext * data) {
             cout << "What would you like to do? 5 -- help " << endl;
             cin >> userCommand;
         } else if(userCommand == 4){
+            returnFromAway(sock);
+            cout << "What would you like to do? 5 -- help " << endl;
+            cin >> userCommand;
+        } else if (userCommand == 5) {
+            helpMessage();
+            cout << "What would you like to do? " << endl;
+            cin >> userCommand;
+        } else if (userCommand == 6) {
             data->setConnect(false);
             //wait to give time for the readthread to close
             cout << "Goodbye " << data->getUser() << endl;
             usleep(500500);
             disconnectRPC(sock);
             break;
-        } else if (userCommand == 5) {
-            helpMessage();
-            cout << "What would you like to do? " << endl;
-            cin >> userCommand;
-        } else if (userCommand == 6) {
-            returnFromAway(sock);
-            cout << "What would you like to do? 5 -- help " << endl;
-            cin >> userCommand;
         } else {
             cout << "Please enter a valid selection!" << endl;
             cout << "What would you like to do? " << endl;
