@@ -559,9 +559,9 @@ static void * readThread(void * input) {
                 // depending on the message, take further action
                 // first check if it's from the current partner
                 if (data->getChatPartner().compare(fromUser) != 0) {
-                    // if it's an automated response
+                    // if it's not an automated response
                     // then give them a heads up
-                    if (message.compare("-- leaving chat") != 0 ||
+                    if (message.compare("-- leaving chat") != 0 && 
                         message.compare("-- is in chat with someone else") != 0) {
                         sendMessage(data,"-- is in chat with someone else",fromUser);
                     }
