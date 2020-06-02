@@ -88,6 +88,7 @@ public:
 // used in: disconnect rpc, sendmessage rpc
 // assumes success = 1
 // assumes the first line of buffer will always be status = int
+// NOTE: bug - if there are any pending messages, it will print the first one
 int basicErrorHandling(char buffer[]) {
     char * status = strtok(buffer, ";=");
     int i = 0;
@@ -209,49 +210,49 @@ string connectRPC(int & sock, string & username, string & password)
     return buffer;
 }
 
-// Client side send message RPC
-// changed inputs to take in thread info
-int sendMessage(GlobalContext * clientData, bool prompt, string message="", string msgFromUser="") {
-    //read globalcontextdata
-    int sock = clientData->getSocket();
-    string fromUser = clientData->getUser();
 
+// Client side send message RPC
+// Changed inputs to take in thread information
+// Since the prompting is now in thread loops, changed the inputs
+// input: clientData = thread info
+// input: message = message to deliver
+// input: toUser = optional, person to deliver to
+int sendMessage(GlobalContext * clientData, string message, string toUser="") {
     // start buffer
-    string toUser;
     int buffersize = 1024;
     char sendBuffer[buffersize];
     strcpy(sendBuffer, "rpc=sendmessage;toUser=");
-    // prompt
-    if (prompt)
+
+    // if they didn't fill in the optional toUser field
+    // then get the value from the current chatPartner 
+    if (toUser.empty())
     {
-        // get user
+        // get user, if it's empty, then prompt
         if (clientData->getChatPartner().empty()) {
-            printf("Who would you like to send a message to? ");
-            if (cin.peek() !='\0') {
+            printf("Who would you like to chat with? ");
+            if (cin.peek() =='\n') {
                 cin.ignore();
             }
             getline(cin, toUser, '\n');
+
+            // then set this as the persistent chat partner
             clientData->setChatPartner(toUser);
             clientData->setChatMode(true);
         } else {
             toUser = clientData->getChatPartner();
         }
-        // get message
-        strcat(sendBuffer, toUser.c_str());
-        strcat(sendBuffer, ";fromUser=");
-        strcat(sendBuffer, fromUser.c_str());
-        strcat(sendBuffer, ";message=");
-        printf("Message: ");
-        getline(cin, message, '\n');
-        strcat(sendBuffer, message.c_str());
-    } else {
-//        toUser = clientData->getChatPartner();
-        strcat(sendBuffer, msgFromUser.c_str());
-        strcat(sendBuffer, ";fromUser=");
-        strcat(sendBuffer, fromUser.c_str());
-        strcat(sendBuffer, ";message=");
-        strcat(sendBuffer, message.c_str());
     }
+
+    // add toUser to buffer
+    strcat(sendBuffer, toUser.c_str());
+
+    // add current user to buffer
+    strcat(sendBuffer, ";fromUser=");
+    strcat(sendBuffer, clientData->getUser().c_str());
+
+    // add message to buffer
+    strcat(sendBuffer, ";message=");
+    strcat(sendBuffer, message.c_str());
 
     //end the line
     char temp[2] = {';'};
@@ -260,45 +261,31 @@ int sendMessage(GlobalContext * clientData, bool prompt, string message="", stri
     //send
     if (message[0] != '\0'){
         //cout << sendBuffer << endl;
-        send(sock, sendBuffer, strlen(sendBuffer)+1, 0);
+        send(clientData->getSocket(), sendBuffer, strlen(sendBuffer)+1, 0);
 
-        //read response
+        // read response
         char * buffer = new char[buffersize];
-        read(sock, buffer, 1024);
-        //cout << buffer << endl;
+        read(clientData->getSocket(), buffer, 1024);
+
+        // print errors if there were any
         int out = basicErrorHandling(buffer);
 
         //if it didn't return a success
-        //cout << out << endl;
         if (out != 1) {
-            //exit chat
-            clientData->setChatPartner("");
-            clientData->setChatMode(false);
+            cout << "There was an error sending your message to " << toUser << endl;
+
+            // if this is the main chatPartner, close out
+            if (toUser.compare(clientData->getChatPartner()) == 0) {
+                // exiting chat
+                cout << "Exiting chat" << endl;
+                clientData->setChatPartner("");
+                clientData->setChatMode(false);
+            }
         }
 
         return out;
     }
     return 0;
-
-    // Check if it sent correctly
-    // Output arguments are:
-    // status     (This will be set to 1 if success and -1 if error)
-    // error      (This will be some sort of message (error or success))
-    // output format="Message successfully sent to <username>
-
-/*
-    char *output = NULL;
-    char substring1[] = "offline at this moment";
-    output = strstr (buffer,substring1);
-    if(output) {
-        return -1;
-    }
-    char substring2[] = "SetAwayMessage=";
-    output = strstr (buffer,substring2);
-    if(output) {
-        return -2;
-    }
-    return 0;*/
 }
 
 // Client side check online user RPC
@@ -307,16 +294,11 @@ string checkOnlineUsers(int & sock) {
     strcpy(authStr, "rpc=checkonlineusers;");
     send(sock, authStr, strlen(authStr)+1, 0);
 
-    // Output arguments are:
-    // status     (This will be set to 1 if success and -1 if error)
-    // error      (This will be some sort of message (error or success))
-    // output format="status=<errorStatus>;error=<errorMessage>"
     size_t valRead;
     char buffer[1024] = { 0 };
     valRead = read(sock, buffer, 1024);
-    // Printing out the valRead and the buffer for validation purposes
-    //printf("ValRead=%zu buffer=%s\n", valRead, buffer);
-    // returns entire buffer, to be parsed later
+
+    // from the buffer, just read the users and list them as online
     char* printit;
     printit = strtok(buffer, ",=");
     int i = 0;
@@ -463,33 +445,84 @@ static string parseMessage(string input) {
 //}
 
 
-// one-on-one chat
+// This thread manages sending messages in chat
 // delete or comment out if not using threads
 static void * chatThread(void * input) {
     GlobalContext * data = (GlobalContext *) input;
+
+    //loop forever
     while (true) {
+
+        // Check if the thread is in chatMode=true
         if (data->getChatMode()) {
-            // in chat mode
+
+            // if yes, get the next message to send
             string message;
-            cout << ">>";
+            pthread_mutex_lock(data->getLock());
+            printf(">>");
+            pthread_mutex_unlock(data->getLock());
             getline(cin, message, '\n');
-            sendMessage(data, false, message, data->getChatPartner());
-            if (message.compare("End Chat") == 0) {
-                cout << "Chat ending" << endl;
-                data->setChatMode(false);
-                //data->setChatPartner("");
-                pthread_exit(NULL);
+
+            // if the message matches a command
+            // then take action
+            // Case: they sent an empty message
+            if (message.empty()) {
+                //printf(">>");
+            // Case: if they started with an @ symbol
+            } else if (message.at(0) == '@') {
+                // Collect the name and message
+                string toUser = message.substr( 1, message.find(' ') - 1 );
+                string parsedMessage = message.substr( message.find(' ') + 1, message.length() - message.find(' '));
+
+                // Send the message to the name
+                sendMessage(data, parsedMessage, toUser);
+
+            // Case: they started a / command
+            } else if (message.at(0) == '/') {
+                // Collect the command
+                string command = message.substr(
+                    1, 
+                    message.find(' ') - 1
+                );
+
+                // take action based on the command
+                // Case: command is endchat
+                if (command.compare("endchat") == 0) {
+                    pthread_mutex_lock(data->getLock());
+                    cout << "Chat ending" << endl;
+                    cout << "----------" << endl;
+
+                    //Send an end message to the other side if it's one-on-one
+                    sendMessage(data, "-- leaving chat", data->getChatPartner()); 
+
+                    // Close out all chat settings and leave thread
+                    data->setChatMode(false);
+                    data->setChatPartner("");
+                    pthread_mutex_unlock(data->getLock());
+                    pthread_exit(NULL);
+
+                // Case: we don't know
+                } else {
+                    printf("Unknown command");
+                }
+
+            // Case: no commands, just send the message
+            } else {
+                sendMessage(data, message, data->getChatPartner());
             }
+
             usleep(100000);
+
+        // Case: chat mode is false, so leave chat
         } else {
+            printf("---------\n");
             pthread_exit(NULL);
         }
     }
     return NULL;
 }
 
-
-// this handles incoming messages from other clients
+// This thread handles incoming messages from other clients
 // delete or comment out if not using threads
 static void * readThread(void * input) {
     // cast input to correct type
@@ -497,10 +530,8 @@ static void * readThread(void * input) {
 
     //continuously loop to check for new incoming messages
     while (true) {
-        // validate we're still connected
-        //if (data->getChatMode()) {
+        // validate we're still chatting
         if (data->getChatMode()) {
-            //yes, connected
 
             //lock the socket while reading
             pthread_mutex_lock(data->getLock());
@@ -513,47 +544,55 @@ static void * readThread(void * input) {
             pollResult = poll(&fd, 1, 500); // .5 second for timeout
 
             if (pollResult > 0) {
-                //read
+                // read
                 char buffer[1024] = {0};
                 read(data->getSocket(), buffer, 1024);
-                //pthread_mutex_unlock(data->getLock());
 
                 //parse it
                 string fromUser = parseFromUser(buffer);
                 string message = parseMessage(buffer);
                 if(message.length() > 0){
-                    printf("[%s]: %s\n", fromUser.c_str(), message.c_str());
+                    printf("[%s]: %s\n>>", fromUser.c_str(), message.c_str());
                 }
 
+                // NOTE: changed based on additional / commands added
                 // depending on the message, take further action
                 // first check if it's from the current partner
                 if (data->getChatPartner().compare(fromUser) != 0) {
-                    // it's not the current partner, so prompt
-                    sendMessage(data,false,"I'm busy",fromUser);
-                }
+                    // if it's an automated response
+                    // then give them a heads up
+                    if (message.compare("-- leaving chat") != 0 ||
+                        message.compare("-- is in chat with someone else") != 0) {
+                        sendMessage(data,"-- is in chat with someone else",fromUser);
+                    }
 
-                // if the message was to leave chat, then exit
-                if (message.compare("End Chat") ==  0) {
-                    cout << "Leaving one-on-one chat with " << fromUser << " Press enter to continue:" << endl;
-                    //data->setChatPartner("");
+                // Case: if the message was to leave chat, then exit the one-on-one
+                } else if (message.compare("-- leaving chat") ==  0) {
+                    printf("Leaving one-on-one chat with %s. Press enter to continue.\n", fromUser.c_str());
+
+                    //unlock the mutex we held
+                    fflush(stdout);
+                    pthread_mutex_unlock(data->getLock());
+                    
+                    //signal to chatThread the status
+                    data->setChatPartner("");
                     data->setChatMode(false);
+
+                    //exit
                     pthread_exit(NULL);
-                    //pthread_cancel(chatLoop);
-                    //pthread_join(chatLoop, NULL);
-                    //pthread_create(&sendLoop, NULL, sendThread, (void *) data);
-                    // if your request was rejected
-                } else if (message.compare("I'm busy") == 0) {
-                    cout << fromUser << " did not accept your chat" << endl;
+
+                // Case: they're not chatting to you
+                // Possibly no longer needed with / commands
+                } else if (message.compare("-- is in chat with someone else") == 0) {
+                    printf("%s might not reply.\n>>", fromUser.c_str());
                     //data->setChatPartner("");
-                    data->setChatMode(false);
-                    pthread_exit(NULL);
-                    //pthread_cancel(chatLoop);
-                    //pthread_join(chatLoop, NULL);
-                    //pthread_create(&sendLoop, NULL, sendThread, (void *) data);
+                    //data->setChatMode(false);
+                    //pthread_exit(NULL);
                 }
             }
 
             // done reading, release
+            fflush(stdout);
             pthread_mutex_unlock(data->getLock());
         } else {
             // client chose to disconnect, stop reading
@@ -571,10 +610,6 @@ static void * readThread(void * input) {
 // this handles messages from the client to the server
 //void * sendThread(void * input) {
 void sendLoop(GlobalContext * data) {
-    // cast input to correct type
-    // needed if this is a thread
-    //GlobalContext * data = (GlobalContext *) input;
-
     // pull socket to variable for convenience
     int sock = data->getSocket();
 
@@ -589,24 +624,35 @@ void sendLoop(GlobalContext * data) {
     // loop over steps
     // lock socket on every call for safety
     while (true) {
-        //fix commenting on usercommand==1 to sremove threading
+        //fix commenting on usercommand==1 to remove threading
         if (userCommand == 1) {
-            cout << "chat partner: ";
+            cout << "Who would you like to chat with?: ";
             string partner;
-            cin >> partner;
+            if (cin.peek() == '\n') {
+                cin.ignore();
+            }
+            getline(cin, partner, '\n');
+            cout << "Setting your chat partner to " << partner << endl;
             data->setChatPartner(partner);
+
+            cout << "----------" << endl;
+            cout << "You may message anyone else by beginning your message with @username" << endl;
+            cout << "To exit chat, use the command /endchat" << endl;
+            cout << "----------" << endl;
+            
             data->setChatMode(true);
+            cout << ">>";
 
             pthread_create(&readLoop, NULL, readThread, (void *) data);
             pthread_create(&chatLoop, NULL, chatThread, (void *) data);
 
             pthread_join(readLoop, NULL);
             pthread_join(chatLoop, NULL);
-            cout << "threads ended" << endl;
+            //cout << "threads ended" << endl;
 
             data->setChatPartner("");
             data->setChatMode(false);
-            cout << "ended" << endl;
+            //cout << "ended" << endl;
             cout << "What would you like to do? 5 -- help " << endl;
             cin >> userCommand;
             /*int ret = sendMessage(data, true);
