@@ -9,32 +9,33 @@
 #include <unordered_map>
 #include <fstream>
 #include <vector>
-#include <sstream>
 
 using namespace std;
 
-#define PORT 12126
-
+// This is the "local context"
+// Each thread will have it's own thread data.
 class threadData {
 private:
+    // Username associated with this thread
     string username;
+    // Socket associated with this thread
     int socket;
+
 public:
+    // Getter for the username
     string getUsername() {
         return username;
     }
-
+    // Setter for the username
     void setUsername(string un) {
         username = un;
     }
-
     // necessary socket info for threading
-    void setSocket(int s)
-    {
+    void setSocket(int s) {
         this->socket = s;
     }
-    int getSocket()
-    {
+    // Gets the socket for this thread
+    int getSocket() {
         return socket;
     }
 };
@@ -43,6 +44,7 @@ public:
 class Encryption {
 
 private:
+    // Necessary fields for encryption to work properly
     const static int shift = 4;
     const static int OFFSET_MIN = 32;
     const static int OFFSET_MAX = 126;
@@ -50,6 +52,7 @@ private:
 public:
     // Checks if all characters in the text are valid
     // Encrypts the passed in text based on the predefined shift
+    // Currently not being used, but available for possible future use
     static string encrypt(string plainText) {
         for(char const &c: plainText){
             int index = (int)c;
@@ -133,7 +136,8 @@ public:
 //        cout << "The RPC call in the constructor is " << rpcCall << endl;
         vector<string> vectorInput = initialInputParse(move(rpcCall));
         deepParse(vectorInput);
-    };
+    }
+
     // Initial parse of the RPC call. Parses by ; to separate out all of the arguments
     // End result will be a vector of format: [rpc, rpcType, parameter1, parameter1value, etc...]
     static vector<string> initialInputParse(string rpcCall) {
@@ -146,6 +150,7 @@ public:
         }
         return vec;
     }
+
     // Secondary parse of the parameters inserting them into the parameters map
     // Map will have key, value pairs of {parameter, parameterValue}
     // The key, value pair of {rpc, rpcType} will be removed from the map as rpc value will be stored in the obj field
@@ -163,14 +168,17 @@ public:
         rpc = got->second;
         parameters.erase("rpc");
     }
+
     // Returns which rpc is associated with the object
     string whichRPC() {
         return rpc;
     }
+
     // Returns the unordered map of parameters
     unordered_map<string, string> restOfParameters() {
         return parameters;
     }
+
     // Clears the object's rpc type and parameter map
     void clear() {
         rpc = "";
@@ -181,21 +189,27 @@ public:
 // User class to store user information
 class user {
 private:
+    // User's password
     string password;
+    // User's status (online, offline)
     string userStatus;
+    // User's away message
     string userMessage;
 public:
     // Default constructor
     user() {
         userStatus = "Offline";
-    };
+    }
+
     // Initializes the fields that are passed in
+    // Currently being used for CSV read functionality
     void initializeFields(const string& field, const string& val) {
         if(field == "password")
             password = val;
         else if(field == "setAwayMsg")
             userMessage = val;
     }
+
     // Returns the value stored for this user under requested field
     string getField(const string& field) {
         cout << "The field being passed in is: " << field << endl;
@@ -216,7 +230,7 @@ public:
         userStatus.assign(status);
     }
 
-    //
+    // Sets the away message for a user
     void setUserMessage(string& message) {
         userMessage.assign(message);
     }
@@ -231,7 +245,7 @@ public:
     //Constructor
     readAndStoreUserData() {
         readFile();
-    };
+    }
 
     // Read from CSV, parse and store in user object
     void readFile() {
@@ -292,7 +306,7 @@ public:
         }
         data.close();
 //        cout << "all data processed" << endl;
-    };
+    }
 
     // Gets the desired user detail for a specific username
     string getUserDetail(const string &un, const string &detail) {
@@ -301,7 +315,7 @@ public:
         return foundUser.getField(detail);
 //        cout << "Retrieved value: " << retrievedValue << endl;
 //        return retrievedValue;
-    };
+    }
 
     // Sets the user status for the user as requested
     void setUserStatus(const string &un, string detail) {
@@ -311,7 +325,7 @@ public:
         foundUser.setStatus(detail);
         userDict.erase(un);
         userDict.insert({un, foundUser});
-    };
+    }
 
     // Assigns a user message for the user (used as an away message in this implementation)
     void setUserMessage(const string &un, string detail) {
@@ -319,14 +333,14 @@ public:
         foundUser.setUserMessage(detail);
         userDict.erase(un);
         userDict.insert({un, foundUser});
-    };
+    }
 
     // Finds the user object from the map based on provided username
     user findUser(const string &un) {
         unordered_map<string, user>::const_iterator outerMapIt = userDict.find(un);
         user foundUser = outerMapIt->second;
         return foundUser;
-    };
+    }
 
     // Checks if the username provided exists in the map
     string checkValidUsername(string un) {
@@ -336,7 +350,7 @@ public:
         } else {
             return un;
         }
-    };
+    }
 
     //Gets list of users with status set to Online
     string getOnlineUsers() {
@@ -355,10 +369,10 @@ public:
             itr++;
         }
         return output;
-    };
+    }
 };
 
-// ServerContextData in example
+// This is the "Global Context" for the server
 // Information that is shared to all threads
 class SharedServerData {
 private:
@@ -366,45 +380,46 @@ private:
     int lastSocket;
     unordered_map<string, int> clientSocketMapping;
     readAndStoreUserData userDataStore;
-
 public:
-    SharedServerData()
-    {
+    SharedServerData() {
         userDataStore = readAndStoreUserData();
     }
 
     // tracking current thread socket in threadData
     // this is for new thread creation
-    void setSocket(int s)
-    {
+    void setSocket(int s) {
         this->lastSocket = s;
     }
 
-    int getSocket()
-    {
+    // Gets the last socket that connected
+    int getSocket() {
         return lastSocket;
     }
 
-    void setClientSocketMapping(string username, int socket){
+    // Maps the client username to the socket
+    void setClientSocketMapping(string username, int socket) {
         pthread_mutex_lock(&lock);
         clientSocketMapping[username] = socket;
         pthread_mutex_unlock(&lock);
     }
 
-    int getSocketMappingForClient(string username){
+    // Gets the mapping for the client socket based off of the username
+    // Returns -1 if user not found
+    int getSocketMappingForClient(string username) {
         if (clientSocketMapping.find(username) != clientSocketMapping.end()) {
             return clientSocketMapping.find(username) -> second;
         }
         return -1;
     }
 
+    // Returns the userDataStore object
     readAndStoreUserData* getUserData() {
         return &userDataStore;
     }
 };
 
-class RPC
-{
+// Class to store all RPC functionality
+class RPC {
 public:
     // Server side connect RPC
     static void connectRPC(SharedServerData *sData, unordered_map<string, string> params, threadData* thread) {
@@ -462,7 +477,7 @@ public:
         send(thread->getSocket(), disconnect, strlen(disconnect)+1, 0);
     }
 
-    // Send message
+    // Functionality called to complete the sending of the message to a different user (thread)
     static void sendMessageTo(string toUserName, string message, int &toSocket, string fromUser) {
         char output[100];
         strcpy(output, "FromUser=");
@@ -502,20 +517,18 @@ public:
         if (storedUsername != passedInUsername) {
             cout << "Bad Username passed in" << endl;
             strcpy(output, strcpy(output, "status=-1;error=BadUsername;"));
-
-            // Case: user is not online
+        // Case: user is not online
         } else if (toSocket == -1) {
             cout << passedInUsername << " is offline at this moment. Please try again later!!!" << endl;
             strcpy(output, "status=-1;error=NotOnline");
-
-            // Case: Passed in username exists and user is online
+        // Case: user sending the message is currently in away state
         } else if (sendingPartyAwayMessage.length() > 0) {
             cout << "User needs to return from away before sending a message" << endl;
             strcpy(output, "status=-1;error=YouAreAway");
+        // Case: Passed in username exists and user is online
         } else {
             // Check away message is set for passedInUsername
             setAwayMessage = getSetAwayMessage(passedInUsername, sharedData);
-
             // if there isn't an away message
             if (setAwayMessage.length() == 0) {
                 cout << "User is available " << endl;
@@ -523,13 +536,10 @@ public:
                 message = p->second;
                 string outputMessage = "Message successfully sent to : ";
                 cout << outputMessage << passedInUsername << endl;
-                // strcpy(output, outputMessage.c_str());
-                // strcat(output, passedInUsername.c_str());
                 sendMessageTo(passedInUsername, message, toSocket, thread->getUsername());
                 // Sends message back to client
                 strcpy(output, "status=1;error=Success");
-
-                // if there is an away message
+            // if there is an away message
             } else {
                 cout << "User not available " << endl;
                 cout << "SetAwayMessage: " << setAwayMessage << endl;
@@ -537,7 +547,6 @@ public:
                 strcat(output, passedInUsername.c_str());
                 strcat(output," is away with SetAwayMessage=");
                 strcat(output,setAwayMessage.c_str());
-                //sendMessageTo(passedInUsername, "SetAway", toSocket, thread->getUsername());
             }
         }
 
@@ -545,13 +554,13 @@ public:
         char temp[2] = {';'};
         strcat(output,temp);
         send(thread->getSocket(), output, 100, 0);
-        // cout << "Sending message back to client toSocket" << toSocket << endl;
-        // send(toSocket, output, strlen(output)+1, 0);
-    };
+//         cout << "Sending message back to client toSocket" << toSocket << endl;
+    }
 
+    // Gets the away message that is set in the user object stored in the sharedData
     static string getSetAwayMessage(string username, SharedServerData * sharedData){
         return sharedData->getUserData()->getUserDetail(username, "setAwayMsg");
-    };
+    }
 
     // Server side RPC to check online users
     static void checkOnlineUsersRPC(SharedServerData *sData, threadData *tData) {
@@ -570,28 +579,33 @@ public:
         delete [] output;
     }
 
+    // Sets the away message for a user to the passed in string
     static void setAwayMessageRPC(SharedServerData * sharedData, threadData * thread, unordered_map<string, string> params){
-        //cout<<"Inside set away message!"<<endl;
+//        cout<<"Inside set away message!"<<endl;
         string message;
         char output[100];
         strcpy(output, "status=1;error=");
         strcat(output,thread->getUsername().c_str());
         strcat(output,"'s away message was set successfully;");
+        // Finds the away message passed in the parameters
         auto s = params.find("awayMessage");
         message = s->second;
         cout << "AwayMessage: " << message << endl;
+        // Saves the away message into the user data
         sharedData->getUserData()->setUserMessage(thread->getUsername(), message);
-//        sharedData->getUserData()->parseAndUpdateCsv(thread->getUsername(), message);
         send(thread->getSocket(), output, strlen(output)+1, 0);
     }
 
+    // Checks the away message stored for a user in the sharedServerData
     static void checkAwayMessage(SharedServerData *sData, threadData *tData) {
         char output[100];
         string awayMessage;
         strcpy(output, "status=1;error=");
         awayMessage = sData->getUserData()->getUserDetail(tData->getUsername(), "setAwayMsg");
+        // Case: User does not have an away message
         if(awayMessage.empty()) {
             strcat(output, "You currently have no away message set;");
+        // Case: User has an away message set
         } else {
             strcat(output, awayMessage.c_str());
             strcat(output, ";");
@@ -599,18 +613,17 @@ public:
         send(tData->getSocket(), output, strlen(output)+1, 0);
     }
 
-    // Server side RPC to check online users
+    // Server side RPC to allow a user to return from being away
     static void userReturningFromAway(SharedServerData *sData, threadData *tData) {
-//        sData->getUserData()->parseAndUpdateCsv(tData->getUsername(), "");
         char output[100];
         strcpy(output, "status=1;error=");
         strcat(output,tData->getUsername().c_str());
         strcat(output," has returned from being away;");
+        // Sets the user's away message to empty string
         sData->getUserData()->setUserMessage(tData->getUsername(), "");
         send(tData->getSocket(), output, strlen(output)+1, 0);
     }
 };
-
 
 // Server class to store server functionality
 class Server {
@@ -621,25 +634,19 @@ private:
     int port;
     int maxConn;
     SharedServerData *sharedData;
-
 public:
-
     // Constructors
-    Server(int nPort)
-    {
+    Server(int nPort) {
         port = nPort;
         //arbitrary value for max connections
         maxConn = 5;
     }
 
-    ~Server()
-    {
-
-    }
+    // Destrutor
+    ~Server() = default;
 
     // Function: start server functionality
-    int startServer()
-    {
+    int startServer() {
         bindSocket(port);
         cout << "binded" << endl;
         sharedData = new SharedServerData();
@@ -651,16 +658,13 @@ public:
         int opt = 1;
 
         // Creating socket file descriptor
-        if ((server_fd = socket(AF_INET, SOCK_STREAM, 0)) == 0)
-        {
+        if ((server_fd = socket(AF_INET, SOCK_STREAM, 0)) == 0) {
             perror("socket failed");
             exit(EXIT_FAILURE);
         }
 
-        // Forcefully attaching socket to the port 8080
-        if (setsockopt(server_fd, SOL_SOCKET, SO_REUSEADDR,
-                       &opt, sizeof(opt)))
-        {
+        // Attaching the port
+        if (setsockopt(server_fd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt))) {
             perror("setsockopt");
             exit(EXIT_FAILURE);
         }
@@ -668,13 +672,11 @@ public:
         address.sin_addr.s_addr = INADDR_ANY;
         address.sin_port = (uint16_t) htons((uint16_t) port);
 
-        if (::bind(server_fd, (struct sockaddr *)&address, sizeof(address)) < 0)
-        {
+        if (::bind(server_fd, (struct sockaddr *)&address, sizeof(address)) < 0) {
             perror("bind failed");
             exit(EXIT_FAILURE);
         }
-        if (listen(server_fd, maxConn) < 0)
-        {
+        if (listen(server_fd, maxConn) < 0) {
             perror("listen");
             exit(EXIT_FAILURE);
         }
@@ -682,13 +684,10 @@ public:
     }
 
     // Function: new client connection
-    int acceptNewConnection()
-    {
+    int acceptNewConnection() {
         int new_socket;
 
-        if ((new_socket = accept(server_fd, (struct sockaddr *)&address,
-                                 (socklen_t*)&addrlen)) < 0)
-        {
+        if ((new_socket = accept(server_fd, (struct sockaddr *)&address, (socklen_t*)&addrlen)) < 0) {
             perror("accept");
             return (-1);
         }
@@ -696,8 +695,7 @@ public:
     }
 
     // Function: copied, expecting additional functionality
-    int closeServer()
-    {
+    int closeServer() {
         return 0;
     }
 
@@ -708,6 +706,7 @@ public:
         // create thread array
         pthread_t *threads = new pthread_t[maxConn];
 
+        // loops infinitely listening for new connections
         while (true) {
             // accept a new request
             int newConn = acceptNewConnection();
@@ -715,15 +714,13 @@ public:
             pthread_create(&threads[i], NULL, rpcThread, (void *) sharedData);
             i = (i+1) % maxConn;
         }
-
         delete [] threads;
     }
 
     // Function to manage a thread
     // must be static
     // must accept void* args
-    static void *rpcThread(void *arg)
-    {
+    static void *rpcThread(void *arg) {
         int valread;
         char buffer[1024] = { 0 };
 
@@ -748,7 +745,7 @@ public:
                 unordered_map<string, string> maps = input.restOfParameters();
                 RPC::connectRPC(pSharedData, maps, &thread);
                 pSharedData->setClientSocketMapping(thread.getUsername(), sock);
-                // input.clear();
+                input.clear();
             // Disconnect called
             } else if(input.whichRPC() == "disconnect") {
                 cout << "Disconnect called" << endl;
@@ -766,11 +763,6 @@ public:
             } else if(input.whichRPC() == "setaway") {
                 cout << "set away message called" << endl;
                 unordered_map<string, string> maps = input.restOfParameters();
-
-                for (auto const& pair: maps) {
-                    std::cout << "{" << pair.first << ": " << pair.second << "}\n";
-                }
-
                 RPC::setAwayMessageRPC(pSharedData, &thread, maps);
                 input.clear();
             // Check Online Users called
@@ -782,9 +774,12 @@ public:
             } else if(input.whichRPC() == "returnFromAway") {
                 cout << "User returning from away" << endl;
                 RPC::userReturningFromAway(pSharedData, &thread);
+                input.clear();
+            // Check away message called
             } else if(input.whichRPC() == "checkAwayMessage") {
                 cout << "Getting user away message" << endl;
                 RPC::checkAwayMessage(pSharedData, &thread);
+                input.clear();
             // Unknown RPC called
             } else {
                 char const *unknownRPC = "status=-1;error=unknownRPC";
@@ -792,16 +787,22 @@ public:
                 input.clear();
             }
         }
-        //pthread_exit(NULL);
         return NULL;
     }
-
 };
 
+// Main method
 int main(int argc, char const *argv[]) {
     cout << "Starting..." << endl;
+    int nPort;
     // build a Server object
-    int nPort = atoi((char const  *)argv[1]);
+    // If not enough arguments are passed in, prompt for the port number.
+    if(argc < 2) {
+        cout << "Please enter a port number: ";
+        cin >> nPort;
+    } else {
+        nPort = atoi((char const *)argv[1]);
+    }
 
     Server *server = new Server(nPort);
     // reads in user data
