@@ -158,7 +158,7 @@ void disconnectRPC(int & sock) {
     valRead = read(sock, buffer, 1024);
     // Printing out the valRead and the buffer for validation purposes
     //printf("ValRead=%zu buffer=%s\n", valRead, buffer);
-    int out = basicErrorHandling(buffer);
+//    int out = basicErrorHandling(buffer);
     close(sock);
 }
 
@@ -218,7 +218,7 @@ string connectRPC(int & sock, string & username, string & password)
 // input: clientData = thread info
 // input: message = message to deliver
 // input: toUser = optional, person to deliver to
-int sendMessage(GlobalContext * clientData, string message, string toUser="") {
+void sendMessage(GlobalContext * clientData, string message, string toUser="") {
     // start buffer
     int buffersize = 1024;
     char sendBuffer[buffersize];
@@ -269,11 +269,18 @@ int sendMessage(GlobalContext * clientData, string message, string toUser="") {
         read(clientData->getSocket(), buffer, 1024);
 
         // print errors if there were any
-        int out = basicErrorHandling(buffer);
-
+//        int out = basicErrorHandling(buffer);
+        vector<string> parsedResponse = getStatusorError(buffer);
         //if it didn't return a success
-        if (out != 1) {
-            cout << "There was an error sending your message to " << toUser << endl;
+        if (parsedResponse[1] != "1") {
+            if (parsedResponse[3] == "YouAreAway") {
+                cout << "You are currently away, please return from being away before chatting." << endl;
+            } else if(parsedResponse[3] == "BadUsername") {
+                cout << "This user does not exist." << endl;
+            } else if(parsedResponse[3] == "NotOnline") {
+                cout << "The user you are trying to reach is offline." << endl;
+            }
+//            cout << "There was an error sending your message to " << toUser << endl;
 
             // if this is the main chatPartner, close out
             if (toUser.compare(clientData->getChatPartner()) == 0) {
@@ -283,10 +290,9 @@ int sendMessage(GlobalContext * clientData, string message, string toUser="") {
                 clientData->setChatMode(false);
             }
         }
-
-        return out;
+//        return out;
     }
-    return 0;
+//    return 0;
 }
 
 // Client side check online user RPC
@@ -645,23 +651,23 @@ void sendLoop(GlobalContext * data) {
             data->setChatPartner("");
             data->setChatMode(false);
             //cout << "ended" << endl;
-            cout << "What would you like to do? 5 -- help " << endl;
+            cout << "What would you like to do? 6 -- help " << endl;
             cin >> userCommand;
         } else if (userCommand == 2) {
             checkOnlineUsers(sock);
-            cout << "\nWhat would you like to do? 5 -- help " << endl;
+            cout << "\nWhat would you like to do? 6 -- help " << endl;
             cin >> userCommand;
         } else if(userCommand == 3) {
             setAwayMessage(sock);
-            cout << "\nWhat would you like to do? 5 -- help " << endl;
+            cout << "\nWhat would you like to do? 6 -- help " << endl;
             cin >> userCommand;
         } else if(userCommand == 4) {
             checkAwayMessage(sock);
-            cout << "\nWhat would you like to do? 5 -- help " << endl;
+            cout << "\nWhat would you like to do? 6 -- help " << endl;
             cin >> userCommand;
         } else if(userCommand == 5){
             returnFromAway(sock);
-            cout << "\nWhat would you like to do? 5 -- help " << endl;
+            cout << "\nWhat would you like to do? 6 -- help " << endl;
             cin >> userCommand;
         } else if (userCommand == 6) {
             helpMessage();

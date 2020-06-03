@@ -486,10 +486,11 @@ public:
         // Creation of encryption object
         string storedUsername, storedPassword;
         string passedInUsername, message, fromUser;
-        string setAwayMessage;
+        string setAwayMessage, sendingPartyAwayMessage;
+        sendingPartyAwayMessage = getSetAwayMessage(thread->getUsername(), sharedData);
 
         // Looks in map of parameters to get the passed in username
-        readAndStoreUserData * data = sharedData->getUserData();
+        readAndStoreUserData *data = sharedData->getUserData();
         auto s = params.find("toUser");
         passedInUsername = s->second;
         storedUsername = data->checkValidUsername(passedInUsername);
@@ -508,6 +509,9 @@ public:
             strcpy(output, "status=-1;error=NotOnline");
 
             // Case: Passed in username exists and user is online
+        } else if (sendingPartyAwayMessage.length() > 0) {
+            cout << "User needs to return from away before sending a message" << endl;
+            strcpy(output, "status=-1;error=YouAreAway");
         } else {
             // Check away message is set for passedInUsername
             setAwayMessage = getSetAwayMessage(passedInUsername, sharedData);
