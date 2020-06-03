@@ -195,10 +195,13 @@ private:
     string userStatus;
     // User's away message
     string userMessage;
+    // User data lock
+    pthread_rwlock_t lockUserData;
 public:
     // Default constructor
     user() {
         userStatus = "Offline";
+        pthread_rwlock_init(&lockUserData,NULL);
     }
 
     // Initializes the fields that are passed in
@@ -212,27 +215,35 @@ public:
 
     // Returns the value stored for this user under requested field
     string getField(const string& field) {
+        string output;
+        pthread_rwlock_rdlock(&lockUserData); // READ LOCK
         cout << "The field being passed in is: " << field << endl;
         if(field == "password") {
-            return password;
+            output = password;
         } else if(field == "setAwayMsg") {
             cout << "The userMessage is: " << userMessage << endl;
-            return userMessage;
+            output = userMessage;
         } else if(field == "userStatus") {
-            return userStatus;
+            output = userStatus;
         } else {
-            return "Not valid field";
+            output = "Not valid field";
         }
+        pthread_rwlock_unlock(&lockUserData); // UNLOCK
+        return output;
     }
 
     // Sets a status for a user (online or offline)
     void setStatus(string& status) {
+        pthread_rwlock_wrlock(&lockUserData); // WRITE LOCK
         userStatus.assign(status);
+        pthread_rwlock_unlock(&lockUserData); // UNLOCK
     }
 
     // Sets the away message for a user
     void setUserMessage(string& message) {
+        pthread_rwlock_wrlock(&lockUserData); // WRITE LOCK
         userMessage.assign(message);
+        pthread_rwlock_unlock(&lockUserData); // UNLOCK
     }
 };
 
@@ -241,12 +252,11 @@ class readAndStoreUserData {
 private:
     // Unordered map to store all users by <username, userObject>
     unordered_map<string, user> userDict;
-    pthread_rwlock_t lockUserData;
+
 public:
     //Constructor
     readAndStoreUserData() {
         readFile();
-        pthread_rwlock_init(&lockUserData,NULL);
     }
 
     // Read from CSV, parse and store in user object
@@ -313,35 +323,29 @@ public:
     // Gets the desired user detail for a specific username
     string getUserDetail(const string &un, const string &detail) {
         string retrievedValue;
-        pthread_rwlock_rdlock(&lockUserData); // READ LOCK
         user foundUser = findUser(un);
         retrievedValue = foundUser.getField(detail);
 //        return foundUser.getField(detail);
 //        cout << "Retrieved value: " << retrievedValue << endl;
-        pthread_rwlock_unlock(&lockUserData); //UNLOCK
         return retrievedValue;
     }
 
     // Sets the user status for the user as requested
     void setUserStatus(const string &un, string detail) {
 //        cout << "setUserStatus method: " << detail << endl;
-        pthread_rwlock_wrlock(&lockUserData); // WRITE LOCK
         user foundUser = findUser(un);
 //        cout << foundUser.getField("userStatus") << endl;
         foundUser.setStatus(detail);
         userDict.erase(un);
         userDict.insert({un, foundUser});
-        pthread_rwlock_unlock(&lockUserData); //UNLOCK
     }
 
     // Assigns a user message for the user (used as an away message in this implementation)
     void setUserMessage(const string &un, string detail) {
-        pthread_rwlock_wrlock(&lockUserData); // WRITE LOCK
         user foundUser = findUser(un);
         foundUser.setUserMessage(detail);
         userDict.erase(un);
         userDict.insert({un, foundUser});
-        pthread_rwlock_unlock(&lockUserData); //UNLOCK
     }
 
     // Finds the user object from the map based on provided username
@@ -353,9 +357,7 @@ public:
 
     // Checks if the username provided exists in the map
     string checkValidUsername(string un) {
-        pthread_rwlock_rdlock(&lockUserData); // READ LOCK
         auto s = userDict.find(un);
-        pthread_rwlock_unlock(&lockUserData); //UNLOCK
         if (s == userDict.end()) {
             return "";
         } else {
@@ -367,7 +369,6 @@ public:
     string getOnlineUsers() {
         //iterate
         string output = "";
-        pthread_rwlock_rdlock(&lockUserData); // READ LOCK
         unordered_map<string, user>::iterator itr = userDict.begin();
         while (itr != userDict.end()) {
             //check user status
@@ -380,7 +381,6 @@ public:
             }
             itr++;
         }
-        pthread_rwlock_unlock(&lockUserData); //UNLOCK
         return output;
     }
 };
@@ -393,7 +393,7 @@ private:
     pthread_mutex_t lockSocket;
     unordered_map<string, int> clientSocketMapping;
     pthread_rwlock_t lockSocketMapping;
-    readAndStoreUserData userDataStore; // has its own internal lock
+    readAndStoreUserData userDataStore; // each user has its own internal lock
 public:
     SharedServerData() {
         userDataStore = readAndStoreUserData();
