@@ -1,5 +1,4 @@
 // Client side C/C++ program to demonstrate Socket programming
-#include <cstdio>
 #include <cstdlib>
 #include <sys/socket.h>
 #include <arpa/inet.h>
@@ -32,59 +31,63 @@ public:
         chatPartner = "";
     }
 
-    void setConnect(bool connected)
-    {
+    // Sets if a user is connected
+    void setConnect(bool connected) {
         this->connected = connected;
     }
 
-    void setUser(string username)
-    {
+    // Sets the associated username
+    void setUser(string username) {
         this->username = username;
     }
 
-    void setSocket(int socket)
-    {
+    // Sets the associated socket
+    void setSocket(int socket) {
         this->socket = socket;
     }
 
-    void setChatPartner(string username)
-    {
+    // Sets the current chat partner for this user
+    void setChatPartner(string username) {
         this->chatPartner = username;
     }
 
-    void setChatMode(bool mode)
-    {
+    // Sets the chatmode for this user (true / false)
+    void setChatMode(bool mode) {
         this->chatMode = mode;
     }
 
-    string getUser()
-    {
+    // Returns the user associated
+    string getUser() {
         return username;
     }
 
-    bool getConnect()
-    {
+    // Returns if connected
+    bool getConnect() {
         return connected;
     }
 
-    int getSocket()
-    {
+    // Returns the socket
+    int getSocket() {
         return socket;
     }
 
+    // Returns the current chat partner
     string getChatPartner() {
         return chatPartner;
     }
 
+    // Returns the current chat mode
     bool getChatMode() {
         return chatMode;
     }
 
+    // returns the mutex lock
     pthread_mutex_t * getLock() {
         return &lock;
     }
 };
 
+// This function could be commented out, not in use anymore
 // making a basic error handler to get rid of printing the buffer
 // used in: disconnect rpc, sendmessage rpc
 // assumes success = 1
@@ -113,26 +116,22 @@ int basicErrorHandling(char buffer[]) {
 }
 
 // Making the initial connection to the server
-int connectToServer(char *szHostName, char *szPort, int & sock)
-{
+int connectToServer(char *szHostName, char *szPort, int & sock) {
     struct sockaddr_in serv_addr{};
     serv_addr.sin_family = AF_INET;
     auto port = (uint16_t) atoi(szPort);
     serv_addr.sin_port = htons(port);
-    if ((sock = socket(AF_INET, SOCK_STREAM, 0)) < 0)
-    {
+    if ((sock = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
         cout << "Socket creation error" << endl;
         return -1;
     }
     serv_addr.sin_family = AF_INET;
     serv_addr.sin_port = htons(port);
-    if (inet_pton(AF_INET, szHostName, &serv_addr.sin_addr) <= 0)
-    {
+    if (inet_pton(AF_INET, szHostName, &serv_addr.sin_addr) <= 0) {
         cout << "Invalid address/ Address not supported" << endl;
         return -1;
     }
-    if (connect(sock, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0)
-    {
+    if (connect(sock, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
         cout << "Connection Failed" << endl;
         return -1;
     }
@@ -156,8 +155,9 @@ void disconnectRPC(int & sock) {
     size_t valRead;
     char buffer[1024] = { 0 };
     valRead = read(sock, buffer, 1024);
+
     // Printing out the valRead and the buffer for validation purposes
-    //printf("ValRead=%zu buffer=%s\n", valRead, buffer);
+//    printf("ValRead=%zu buffer=%s\n", valRead, buffer);
 //    int out = basicErrorHandling(buffer);
     close(sock);
 }
@@ -206,7 +206,7 @@ string connectRPC(int & sock, string & username, string & password)
     char buffer[1024] = { 0 };
     valRead = read(sock, buffer, 1024);
     // Printing out the valRead and the buffer for validation purposes
-    //printf("ValRead=%zu buffer=%s\n", valRead, buffer);
+//    printf("ValRead=%zu buffer=%s\n", valRead, buffer);
     // returns entire buffer, to be parsed later
     return buffer;
 }
@@ -273,6 +273,7 @@ void sendMessage(GlobalContext * clientData, string message, string toUser="") {
         vector<string> parsedResponse = getStatusorError(buffer);
         //if it didn't return a success
         if (parsedResponse[1] != "1") {
+            // Checks for specific error message
             if (parsedResponse[3] == "YouAreAway") {
                 cout << "You are currently away, please return from being away before chatting." << endl;
             } else if(parsedResponse[3] == "BadUsername") {
@@ -341,16 +342,18 @@ void setAwayMessage(int & sock) {
     size_t valRead;
     char buffer[1024] = { 0 };
     valRead = read(sock, buffer, 1024);
+
     // Printing out the valRead and the buffer for validation purposes
-    // printf("ValRead=%zu buffer=%s\n", valRead, buffer);
-    // printf("%s\n", buffer);
-    // returns entire buffer, to be parsed later
+//     printf("ValRead=%zu buffer=%s\n", valRead, buffer);
+//     printf("%s\n", buffer);
+
     vector<string> parsedResponse = getStatusorError(buffer);
     if (parsedResponse[1] == "1") {
         cout << parsedResponse[3] << endl;
     }
 }
 
+// Client side checking user's away message
 void checkAwayMessage(int & sock) {
     char returnCall[256];
     strcpy(returnCall,"rpc=checkAwayMessage;");
@@ -359,6 +362,7 @@ void checkAwayMessage(int & sock) {
     char buffer[1024] = { 0 };
     valRead = read(sock, buffer, 1024);
     vector<string> parsedResponse = getStatusorError(buffer);
+    // Prints user's current away message
     if (parsedResponse[1] == "1" && parsedResponse[3] == "You currently have no away message set") {
         cout << parsedResponse[3] << endl;
     } else {
@@ -366,6 +370,7 @@ void checkAwayMessage(int & sock) {
     }
 }
 
+// Client side to allow a user to return from being away
 void returnFromAway(int & sock) {
     char returnCall[256];
     strcpy(returnCall,"rpc=returnFromAway;");
@@ -378,12 +383,17 @@ void returnFromAway(int & sock) {
     valRead = read(sock, buffer, 1024);
     // Printing out the valRead and the buffer for validation purposes
 //    printf("ValRead=%zu buffer=%s\n", valRead, buffer);
+
+    // Parses the buffer returned from the server
     vector<string> parsedResponse = getStatusorError(buffer);
+
+    // Prints out the response from server
     if (parsedResponse[1] == "1") {
         cout << parsedResponse[3] << endl;
     }
 }
 
+//  Allows user to print a menu and see what commands are available
 bool helpMessage() {
     cout << "--------------------" << endl;
     cout << "Available commands: " << endl;
@@ -394,7 +404,6 @@ bool helpMessage() {
     cout << "5. Return from away"<< endl;
     cout << "6. Help message" << endl;
     cout << "7. Disconnect" << endl;
-//    cout << "Any other number. Just to be online and be a good listener" << endl;
     cout << "--------------------" << endl;
     return true;
 }
@@ -422,6 +431,7 @@ static string parseFromUser(string input) {
     return val;
 }
 
+// Parsing of the message
 static string parseMessage(string input) {
     // cout << "parseFromMessage:: " << input << endl;
     vector<string> vec;
@@ -439,12 +449,10 @@ static string parseMessage(string input) {
         s.erase(0, pos+1);
         val = s.substr(0, s.length());
     }
-
     return val;
 }
 
 // This thread manages sending messages in chat
-// delete or comment out if not using threads
 static void * chatThread(void * input) {
     GlobalContext * data = (GlobalContext *) input;
 
@@ -521,7 +529,6 @@ static void * chatThread(void * input) {
 }
 
 // This thread handles incoming messages from other clients
-// delete or comment out if not using threads
 static void * readThread(void * input) {
     // cast input to correct type
     GlobalContext * data = (GlobalContext *) input;
@@ -606,7 +613,6 @@ static void * readThread(void * input) {
 
 
 // this handles messages from the client to the server
-//void * sendThread(void * input) {
 void sendLoop(GlobalContext * data) {
     // pull socket to variable for convenience
     int sock = data->getSocket();
@@ -622,7 +628,7 @@ void sendLoop(GlobalContext * data) {
     // loop over steps
     // lock socket on every call for safety
     while (true) {
-        //fix commenting on usercommand==1 to remove threading
+        // User chatting
         if (userCommand == 1) {
             cout << "Who would you like to chat with?: ";
             string partner;
@@ -653,33 +659,40 @@ void sendLoop(GlobalContext * data) {
             //cout << "ended" << endl;
             cout << "What would you like to do? 6 -- help " << endl;
             cin >> userCommand;
+        // User checking online users
         } else if (userCommand == 2) {
             checkOnlineUsers(sock);
             cout << "\nWhat would you like to do? 6 -- help " << endl;
             cin >> userCommand;
+        // User setting an away message
         } else if(userCommand == 3) {
             setAwayMessage(sock);
             cout << "\nWhat would you like to do? 6 -- help " << endl;
             cin >> userCommand;
+        // User checking their away message
         } else if(userCommand == 4) {
             checkAwayMessage(sock);
             cout << "\nWhat would you like to do? 6 -- help " << endl;
             cin >> userCommand;
+        // User returning from being away
         } else if(userCommand == 5){
             returnFromAway(sock);
             cout << "\nWhat would you like to do? 6 -- help " << endl;
             cin >> userCommand;
+        // User wants to review the help message
         } else if (userCommand == 6) {
             helpMessage();
             cout << "What would you like to do? " << endl;
             cin >> userCommand;
+        // User wants to disconnect
         } else if (userCommand == 7) {
             data->setConnect(false);
-            //wait to give time for the readthread to close
+            // wait to give time for the readthread to close
             cout << "Goodbye " << data->getUser() << endl;
             usleep(500500);
             disconnectRPC(sock);
             break;
+        // Invalid number or input entered
         } else {
             if(!cin) {
                 cin.clear();
@@ -692,9 +705,8 @@ void sendLoop(GlobalContext * data) {
     }
 }
 
-
-int main(int argc, char const *argv[])
-{
+// Main method for client side
+int main(int argc, char const *argv[]) {
     int sock = 0;
     GlobalContext * data = new GlobalContext();
     string username;
