@@ -543,9 +543,7 @@ public:
             } else {
                 cout << "User not available " << endl;
                 cout << "SetAwayMessage: " << setAwayMessage << endl;
-                strcpy(output,"status=-1;error=");
-                strcat(output, passedInUsername.c_str());
-                strcat(output," is away with SetAwayMessage=");
+                strcpy(output,"status=-1;error=Away;message=");
                 strcat(output,setAwayMessage.c_str());
             }
         }

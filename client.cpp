@@ -280,6 +280,9 @@ void sendMessage(GlobalContext * clientData, string message, string toUser="") {
                 cout << "This user does not exist." << endl;
             } else if(parsedResponse[3] == "NotOnline") {
                 cout << "The user you are trying to reach is offline." << endl;
+            } else if(parsedResponse[3] == "Away") {
+                cout << "The user is away" << endl;
+                cout << "Their away message says: " << parsedResponse[5] << endl;
             }
 //            cout << "There was an error sending your message to " << toUser << endl;
 
