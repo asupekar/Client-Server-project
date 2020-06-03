@@ -241,10 +241,12 @@ class readAndStoreUserData {
 private:
     // Unordered map to store all users by <username, userObject>
     unordered_map<string, user> userDict;
+    pthread_rwlock_t lockUserData;
 public:
     //Constructor
     readAndStoreUserData() {
         readFile();
+        pthread_rwlock_init(&lockUserData,NULL);
     }
 
     // Read from CSV, parse and store in user object
@@ -310,29 +312,36 @@ public:
 
     // Gets the desired user detail for a specific username
     string getUserDetail(const string &un, const string &detail) {
-//        string retrievedValue;
+        string retrievedValue;
+        pthread_rwlock_rdlock(&lockUserData); // READ LOCK
         user foundUser = findUser(un);
-        return foundUser.getField(detail);
+        retrievedValue = foundUser.getField(detail);
+//        return foundUser.getField(detail);
 //        cout << "Retrieved value: " << retrievedValue << endl;
-//        return retrievedValue;
+        pthread_rwlock_unlock(&lockUserData); //UNLOCK
+        return retrievedValue;
     }
 
     // Sets the user status for the user as requested
     void setUserStatus(const string &un, string detail) {
 //        cout << "setUserStatus method: " << detail << endl;
+        pthread_rwlock_wrlock(&lockUserData); // WRITE LOCK
         user foundUser = findUser(un);
 //        cout << foundUser.getField("userStatus") << endl;
         foundUser.setStatus(detail);
         userDict.erase(un);
         userDict.insert({un, foundUser});
+        pthread_rwlock_unlock(&lockUserData); //UNLOCK
     }
 
     // Assigns a user message for the user (used as an away message in this implementation)
     void setUserMessage(const string &un, string detail) {
+        pthread_rwlock_wrlock(&lockUserData); // WRITE LOCK
         user foundUser = findUser(un);
         foundUser.setUserMessage(detail);
         userDict.erase(un);
         userDict.insert({un, foundUser});
+        pthread_rwlock_unlock(&lockUserData); //UNLOCK
     }
 
     // Finds the user object from the map based on provided username
@@ -344,7 +353,9 @@ public:
 
     // Checks if the username provided exists in the map
     string checkValidUsername(string un) {
+        pthread_rwlock_rdlock(&lockUserData); // READ LOCK
         auto s = userDict.find(un);
+        pthread_rwlock_unlock(&lockUserData); //UNLOCK
         if (s == userDict.end()) {
             return "";
         } else {
@@ -356,6 +367,7 @@ public:
     string getOnlineUsers() {
         //iterate
         string output = "";
+        pthread_rwlock_rdlock(&lockUserData); // READ LOCK
         unordered_map<string, user>::iterator itr = userDict.begin();
         while (itr != userDict.end()) {
             //check user status
@@ -368,6 +380,7 @@ public:
             }
             itr++;
         }
+        pthread_rwlock_unlock(&lockUserData); //UNLOCK
         return output;
     }
 };
@@ -376,13 +389,16 @@ public:
 // Information that is shared to all threads
 class SharedServerData {
 private:
-    pthread_mutex_t lock;
     int lastSocket;
+    pthread_mutex_t lockSocket;
     unordered_map<string, int> clientSocketMapping;
-    readAndStoreUserData userDataStore;
+    pthread_rwlock_t lockSocketMapping;
+    readAndStoreUserData userDataStore; // has its own internal lock
 public:
     SharedServerData() {
         userDataStore = readAndStoreUserData();
+        pthread_mutex_init(&lockSocket, NULL);
+        pthread_rwlock_init(&lockSocketMapping, NULL);
     }
 
     // tracking current thread socket in threadData
@@ -395,19 +411,27 @@ public:
     int getSocket() {
         return lastSocket;
     }
+    
+    // Gets the socket lock
+    pthread_mutex_t * getLockSocket() {
+        return &lockSocket;
+    }  
 
     // Maps the client username to the socket
     void setClientSocketMapping(string username, int socket) {
-        pthread_mutex_lock(&lock);
+        pthread_rwlock_wrlock(&lockSocketMapping); //WRITE LOCK
         clientSocketMapping[username] = socket;
-        pthread_mutex_unlock(&lock);
+        pthread_rwlock_unlock(&lockSocketMapping); //UNLOCK
     }
 
     // Gets the mapping for the client socket based off of the username
     // Returns -1 if user not found
     int getSocketMappingForClient(string username) {
-        if (clientSocketMapping.find(username) != clientSocketMapping.end()) {
-            return clientSocketMapping.find(username) -> second;
+        pthread_rwlock_rdlock(&lockSocketMapping); //READ LOCK
+        auto it = clientSocketMapping.find(username);
+        pthread_rwlock_unlock(&lockSocketMapping); //UNLOCK
+        if (it != clientSocketMapping.end()) {
+            return it -> second;
         }
         return -1;
     }
@@ -708,6 +732,9 @@ public:
         while (true) {
             // accept a new request
             int newConn = acceptNewConnection();
+            // protect the socket while generating a new thread
+            // unlock within the thread
+            pthread_mutex_lock(sharedData->getLockSocket()); //LOCK MUTEX
             sharedData->setSocket(newConn);
             pthread_create(&threads[i], NULL, rpcThread, (void *) sharedData);
             i = (i+1) % maxConn;
@@ -729,6 +756,8 @@ public:
         //passing sockets
         int sock = pSharedData->getSocket();
         thread.setSocket(sock);
+        //unlock mutex from threadLoop
+        pthread_mutex_unlock(pSharedData->getLockSocket()); //UNLOCK MUTEX
 
         // User continuously listens for new RPC requests from connected user
         while ((valread = read(sock, buffer, 1024)) != 0) {
