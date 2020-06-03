@@ -569,22 +569,41 @@ public:
     static void setAwayMessageRPC(SharedServerData * sharedData, threadData * thread, unordered_map<string, string> params){
         //cout<<"Inside set away message!"<<endl;
         string message;
-
+        char output[100];
+        strcpy(output, "status=1;error=");
+        strcat(output,thread->getUsername().c_str());
+        strcat(output,"'s away message was set successfully;");
         auto s = params.find("awayMessage");
         message = s->second;
         cout << "AwayMessage: " << message << endl;
         sharedData->getUserData()->setUserMessage(thread->getUsername(), message);
 //        sharedData->getUserData()->parseAndUpdateCsv(thread->getUsername(), message);
-        string success = "SetAwayMessage was set successfully";
-        send(thread->getSocket(), success.c_str(), success.length()+1, 0);
+        send(thread->getSocket(), output, strlen(output)+1, 0);
+    }
+
+    static void checkAwayMessage(SharedServerData *sData, threadData *tData) {
+        char output[100];
+        string awayMessage;
+        strcpy(output, "status=1;error=");
+        awayMessage = sData->getUserData()->getUserDetail(tData->getUsername(), "setAwayMsg");
+        if(awayMessage.empty()) {
+            strcat(output, "You currently have no away message set;");
+        } else {
+            strcat(output, awayMessage.c_str());
+            strcat(output, ";");
+        }
+        send(tData->getSocket(), output, strlen(output)+1, 0);
     }
 
     // Server side RPC to check online users
     static void userReturningFromAway(SharedServerData *sData, threadData *tData) {
 //        sData->getUserData()->parseAndUpdateCsv(tData->getUsername(), "");
+        char output[100];
+        strcpy(output, "status=1;error=");
+        strcat(output,tData->getUsername().c_str());
+        strcat(output," has returned from being away;");
         sData->getUserData()->setUserMessage(tData->getUsername(), "");
-        string success = "SetAwayMessage was set successfully";
-        send(tData->getSocket(), success.c_str(), success.length()+1, 0);
+        send(tData->getSocket(), output, strlen(output)+1, 0);
     }
 };
 
@@ -759,6 +778,9 @@ public:
             } else if(input.whichRPC() == "returnFromAway") {
                 cout << "User returning from away" << endl;
                 RPC::userReturningFromAway(pSharedData, &thread);
+            } else if(input.whichRPC() == "checkAwayMessage") {
+                cout << "Getting user away message" << endl;
+                RPC::checkAwayMessage(pSharedData, &thread);
             // Unknown RPC called
             } else {
                 char const *unknownRPC = "status=-1;error=unknownRPC";

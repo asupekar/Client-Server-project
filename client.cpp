@@ -315,7 +315,7 @@ string checkOnlineUsers(int & sock) {
 }
 
 // Client side set away message RPC
-string setAwayMessage(int & sock) {
+void setAwayMessage(int & sock) {
     char authStr[1024];
     string awayMessage;
 
@@ -336,10 +336,28 @@ string setAwayMessage(int & sock) {
     char buffer[1024] = { 0 };
     valRead = read(sock, buffer, 1024);
     // Printing out the valRead and the buffer for validation purposes
-    //printf("ValRead=%zu buffer=%s\n", valRead, buffer);
-    printf("%s\n", buffer);
+    // printf("ValRead=%zu buffer=%s\n", valRead, buffer);
+    // printf("%s\n", buffer);
     // returns entire buffer, to be parsed later
-    return buffer;
+    vector<string> parsedResponse = getStatusorError(buffer);
+    if (parsedResponse[1] == "1") {
+        cout << parsedResponse[3] << endl;
+    }
+}
+
+void checkAwayMessage(int & sock) {
+    char returnCall[256];
+    strcpy(returnCall,"rpc=checkAwayMessage;");
+    send(sock, returnCall, strlen(returnCall)+1, 0);
+    size_t valRead;
+    char buffer[1024] = { 0 };
+    valRead = read(sock, buffer, 1024);
+    vector<string> parsedResponse = getStatusorError(buffer);
+    if (parsedResponse[1] == "1" && parsedResponse[3] == "You currently have no away message set") {
+        cout << parsedResponse[3] << endl;
+    } else {
+        cout << "Your current away message is: " << parsedResponse[3] << endl;
+    }
 }
 
 void returnFromAway(int & sock) {
@@ -353,8 +371,11 @@ void returnFromAway(int & sock) {
     char buffer[1024] = { 0 };
     valRead = read(sock, buffer, 1024);
     // Printing out the valRead and the buffer for validation purposes
-    printf("ValRead=%zu buffer=%s\n", valRead, buffer);
-//    int out = basicErrorHandling(buffer);
+//    printf("ValRead=%zu buffer=%s\n", valRead, buffer);
+    vector<string> parsedResponse = getStatusorError(buffer);
+    if (parsedResponse[1] == "1") {
+        cout << parsedResponse[3] << endl;
+    }
 }
 
 bool helpMessage() {
@@ -363,9 +384,10 @@ bool helpMessage() {
     cout << "1. Chat" << endl;
     cout << "2. Check Online Users" << endl;
     cout << "3. Set Away Message" << endl;
-    cout << "4. Return from away"<< endl;
-    cout << "5. Help message" << endl;
-    cout << "6. Disconnect" << endl;
+    cout << "4. Check Away Message" << endl;
+    cout << "5. Return from away"<< endl;
+    cout << "6. Help message" << endl;
+    cout << "7. Disconnect" << endl;
 //    cout << "Any other number. Just to be online and be a good listener" << endl;
     cout << "--------------------" << endl;
     return true;
@@ -414,37 +436,6 @@ static string parseMessage(string input) {
 
     return val;
 }
-
-// DECIDED UNNECESSARY -- WILL DELETE BEFORE TURN IN
-// after you get an unknown incoming message
-// decide whether or not to accept chat
-// delete or comment out if not using threads
-//string acceptChat(GlobalContext * data, string fromUser) {
-//    string acceptChat;
-//    printf("Do you want to enter chat with %s? yes or no: ",fromUser.c_str());
-//
-//    getline(cin,acceptChat,'\n');
-//    if (acceptChat.compare("yes") == 0) {
-//        // if you're already in chat, tell them you're done
-//        printf("Accepted!\n");
-//        if (data->getChatMode()) {
-//            printf("Ending chat with %s\n",data->getChatPartner().c_str());
-//            sendMessage(data,false,"End Chat");
-//        } else {
-//            data->setChatMode(true);
-//        }
-//        // enter one-on-one mode
-//        printf("Starting chat with %s\n",fromUser.c_str());
-//        data->setChatPartner(fromUser);
-//    } else {
-//        //rejected
-//        data->setChatPartner(fromUser);
-//        sendMessage(data,false,"No Chat");
-//        data->setChatPartner("");
-//    }
-//    return acceptChat;
-//}
-
 
 // This thread manages sending messages in chat
 // delete or comment out if not using threads
@@ -618,7 +609,7 @@ void sendLoop(GlobalContext * data) {
     string username = data->getUser();
 
     // give help first
-    int userCommand = 5;
+    int userCommand = 6;
     pthread_t readLoop;
     pthread_t chatLoop;
 
@@ -640,7 +631,7 @@ void sendLoop(GlobalContext * data) {
             cout << "You may message anyone else by beginning your message with @username" << endl;
             cout << "To exit chat, use the command /endchat" << endl;
             cout << "----------" << endl;
-            
+
             data->setChatMode(true);
             cout << ">>";
 
@@ -656,29 +647,27 @@ void sendLoop(GlobalContext * data) {
             //cout << "ended" << endl;
             cout << "What would you like to do? 5 -- help " << endl;
             cin >> userCommand;
-            /*int ret = sendMessage(data, true);
-            if(ret == -1 || ret == -2) {
-                userCommand = 4;
-            }else{
-                userCommand = 6;
-            }*/
         } else if (userCommand == 2) {
             checkOnlineUsers(sock);
-            cout << "What would you like to do? 5 -- help " << endl;
+            cout << "\nWhat would you like to do? 5 -- help " << endl;
             cin >> userCommand;
-        } else if(userCommand == 3){
+        } else if(userCommand == 3) {
             setAwayMessage(sock);
-            cout << "What would you like to do? 5 -- help " << endl;
+            cout << "\nWhat would you like to do? 5 -- help " << endl;
             cin >> userCommand;
-        } else if(userCommand == 4){
+        } else if(userCommand == 4) {
+            checkAwayMessage(sock);
+            cout << "\nWhat would you like to do? 5 -- help " << endl;
+            cin >> userCommand;
+        } else if(userCommand == 5){
             returnFromAway(sock);
-            cout << "What would you like to do? 5 -- help " << endl;
+            cout << "\nWhat would you like to do? 5 -- help " << endl;
             cin >> userCommand;
-        } else if (userCommand == 5) {
+        } else if (userCommand == 6) {
             helpMessage();
             cout << "What would you like to do? " << endl;
             cin >> userCommand;
-        } else if (userCommand == 6) {
+        } else if (userCommand == 7) {
             data->setConnect(false);
             //wait to give time for the readthread to close
             cout << "Goodbye " << data->getUser() << endl;
@@ -693,24 +682,8 @@ void sendLoop(GlobalContext * data) {
             cout << "Please enter a valid selection!" << endl;
             cout << "What would you like to do? " << endl;
             cin >> userCommand;
-//            char buffer[1024] = {0};
-//            while(read(sock, buffer, 1024)){
-//                string fromUser = parseFromUser(buffer);
-//                string message = parseMessage(buffer);
-//                if(message.length() > 0 && (message.compare("SetAway")!=0)){
-//                    printf("%s: %s\n", fromUser.c_str(), message.c_str());
-//                    sendMessage(data, true);
-//                    userCommand = 6;
-//                }else{
-//                    cout << "Disconnecting since away..."<< endl;
-//                    userCommand = 4;
-//                }
-//                break;
-//            }
         }
     }
-
-    //return NULL;
 }
 
 
@@ -743,7 +716,7 @@ int main(int argc, char const *argv[])
         string response = connectRPC(sock, username, password);
         vector<string> parsedResponse = getStatusorError(response);
         if (parsedResponse[1] == "1") {
-            cout << "Successfully connected!" << endl;
+            cout << "\nWelcome to the chatroom " << username << endl;
             connected = true;
         } else {
             cout << "The error was a " << parsedResponse[3] << endl;
@@ -758,79 +731,3 @@ int main(int argc, char const *argv[])
     sendLoop(data);
     return 0;
 }
-/*
-int main(int argc, char const *argv[])
-{
-    int sock = 0;
-    string username;
-    string password;
-    string toUser;
-    // Client can input host name and port # as arguments when running the program
-    // If the client does not provide these, the global HOST and PORT are used to connect
-    if(argc < 2) {
-//        cout << "This needs 2 arguments Host name (127.0.0.1) and port #" << endl;
-        connectToServer((char *) HOST, (char *) PORT, sock);
-    } else {
-        connectToServer((char *) argv[1], (char *) argv[2], sock);
-    }
-    bool connected = false;
-    // Continue to ask for user credentials until they are correct
-    do {
-        string response = connectRPC(sock, username, password);
-        vector<string> parsedResponse = getStatusorError(response);
-        if (parsedResponse[1] == "1") {
-            cout << "Successfully connected!" << endl;
-            connected = true;
-        } else {
-            cout << "The error was a " << parsedResponse[3] << endl;
-        }
-    } while(!connected);
-//    cout << "Waiting for 10 seconds....." << endl;
-    // Wait 10 seconds and then disconnect
-//    usleep(10000000);
-
-    int userCommand;
-    cout << "What would you like to do? 5 -- help " << endl;
-    cin >> userCommand;
-    while (true) {
-        if (userCommand == 1) {
-            int ret = sendMessage(sock, username, toUser, true);
-            if(ret == -1 || ret == -2) {
-                userCommand = 4;
-            }else{
-                userCommand = 6;
-            }
-        } else if (userCommand == 2) {
-            checkOnlineUsers(sock);
-            userCommand = 5;
-        } else if(userCommand == 3){
-            setAwayMessage(sock);
-            userCommand = 4;
-        } else if(userCommand == 4){
-            disconnectRPC(sock);
-            break;
-        } else if(userCommand == 5) {
-            helpMessage();
-            cout << "What would you like to do? 5 -- help " << endl;
-            cin >> userCommand;
-        } else {
-            char buffer[1024] = {0};
-            while(read(sock, buffer, 1024)){
-                string fromUser = parseFromUser(buffer);
-                string message = parseMessage(buffer);
-                if(message.length() > 0 && (message.compare("SetAway")!=0)){
-                    printf("%s: %s\n", fromUser.c_str(), message.c_str());
-                    sendMessage(sock, username, fromUser, false);
-                    userCommand = 6;
-                }else{
-                    cout << "Disconnecting since away..."<< endl;
-                    userCommand = 4;
-                }
-                break;
-            }   
-        }
-    }
-    
-    return 0;
-}
-*/
