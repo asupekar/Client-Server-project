@@ -11,8 +11,6 @@
 #include <limits>
 
 // This port and host will automatically be passed in if client is called without arguments
-#define PORT "12126"
-#define HOST "127.0.0.1"
 
 using namespace std;
 
@@ -719,8 +717,9 @@ int main(int argc, char const *argv[]) {
     // Client can input host name and port # as arguments when running the program
     // If the client does not provide these, the global HOST and PORT are used to connect
     if(argc < 2) {
-//        cout << "This needs 2 arguments Host name (127.0.0.1) and port #" << endl;
-        connection = connectToServer((char *) HOST, (char *) PORT, sock);
+        cout << "This needs 2 arguments Host name (127.0.0.1) and port #" << endl;
+        return -1;
+//        connection = connectToServer((char *) HOST, (char *) PORT, sock);
     } else {
         connection = connectToServer((char *) argv[1], (char *) argv[2], sock);
     }

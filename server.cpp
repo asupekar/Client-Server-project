@@ -217,7 +217,7 @@ public:
     string getField(const string& field) {
         string output;
         pthread_rwlock_rdlock(&lockUserData); // READ LOCK
-        cout << "The field being passed in is: " << field << endl;
+//        cout << "The field being passed in is: " << field << endl;
         if(field == "password") {
             output = password;
         } else if(field == "setAwayMsg") {
